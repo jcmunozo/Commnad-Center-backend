@@ -1,7 +1,6 @@
 # PMO Command Center — Backend
 
-Django 5 + DRF + PostgreSQL backend for the PMO Command Center (migrated from the
-Excel workbook). See `../PMO_Command_Center_Guide.md` for the domain background.
+Django 5 + DRF + PostgreSQL backend for the PMO Command Center. See `../PMO_Command_Center_Guide.md` for the domain background.
 
 ## Quick start (Docker)
 
