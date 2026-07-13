@@ -1,11 +1,9 @@
 from django_filters import rest_framework as filters
 
-from .models import ApiComponent, Endpoint, Milestone, Task
+from .models import ApiComponent, Endpoint, Milestone, Project, Task
 
 
 class ProjectFilter(filters.FilterSet):
-    from .models import Project  # local import to avoid confusion
-
     name = filters.CharFilter(lookup_expr="icontains")
     planned_end_before = filters.DateTimeFilter(field_name="planned_end", lookup_expr="lte")
     planned_end_after = filters.DateTimeFilter(field_name="planned_end", lookup_expr="gte")

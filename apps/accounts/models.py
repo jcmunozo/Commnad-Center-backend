@@ -30,4 +30,12 @@ class AppUser(AbstractUser):
 
     @property
     def role_names(self) -> list[str]:
-        return list(self.groups.values_list("name", flat=True))
+        """Group names, plus the implicit admin role superusers get in
+        apps.core.permissions.user_in_roles — clients (frontend guards) rely
+        on this list matching what the API will actually authorize."""
+        from apps.core.permissions import ROLE_ADMIN
+
+        names = list(self.groups.values_list("name", flat=True))
+        if self.is_superuser and ROLE_ADMIN not in names:
+            names.append(ROLE_ADMIN)
+        return names
