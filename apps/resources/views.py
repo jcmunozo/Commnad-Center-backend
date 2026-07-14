@@ -49,7 +49,9 @@ class EmployeeViewSet(BaseModelViewSet):
         serializer.is_valid(raise_exception=True)
         EmployeeShift.objects.filter(employee=employee).delete()
         EmployeeShift.objects.bulk_create([
-            EmployeeShift(employee=employee, weekday=row["weekday"], shift=row["shift"])
+            EmployeeShift(employee=employee, weekday=row["weekday"],
+                          shift=row.get("shift") or _shift_for_hours(
+                              row["start_hour"], row["end_hour"]))
             for row in serializer.validated_data
         ])
         qs = EmployeeShift.objects.filter(employee=employee)
@@ -83,3 +85,14 @@ class WorkloadView(APIView):
         end = parse_datetime(request.query_params.get("end", "") or "")
         data = services.employee_workload(period_start=start, period_end=end)
         return Response(WorkloadRowSerializer(data, many=True).data)
+
+
+def _shift_for_hours(start: int, end: int):
+    """Turno de catálogo para un rango libre; lo crea si no existe (H07_16)."""
+    from apps.catalogs.models import Shift
+
+    shift, _ = Shift.objects.get_or_create(
+        code=f"H{start:02d}_{end:02d}",
+        defaults={"name": f"{start:02d}:00 – {end:02d}:00",
+                  "start_hour": start, "end_hour": end, "sort_order": 99})
+    return shift

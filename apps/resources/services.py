@@ -46,8 +46,8 @@ def employee_workload(period_start=None, period_end=None) -> list[dict]:
     # turno de hoy por empleado (semana actual; ISO 1=lunes)
     today = timezone.localdate().isoweekday()
     shift_today = {
-        s.employee_id: s.shift_id
-        for s in EmployeeShift.objects.filter(weekday=today)
+        s.employee_id: s.shift.name
+        for s in EmployeeShift.objects.filter(weekday=today).select_related("shift")
     }
 
     results = []

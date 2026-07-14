@@ -21,14 +21,44 @@ class EmployeeDetailSerializer(serializers.ModelSerializer):
 
 
 class EmployeeShiftSerializer(serializers.ModelSerializer):
+    """Acepta un turno de catálogo (``shift``) o un rango libre
+    (``start_hour``/``end_hour``); el rango libre crea/reusa la entrada de
+    catálogo H{ss}_{ee} al guardar (ver EmployeeViewSet.schedule)."""
+
+    shift = serializers.PrimaryKeyRelatedField(
+        queryset=EmployeeShift._meta.get_field("shift").related_model.objects.all(),
+        required=False, allow_null=True)
+    start_hour = serializers.IntegerField(required=False, allow_null=True,
+                                          min_value=0, max_value=23)
+    end_hour = serializers.IntegerField(required=False, allow_null=True,
+                                        min_value=0, max_value=23)
+
     class Meta:
         model = EmployeeShift
-        fields = ("id", "employee", "weekday", "shift")
+        fields = ("id", "employee", "weekday", "shift", "start_hour", "end_hour")
+        # El PUT del schedule es full-replace (borra y recrea): el validador
+        # de unicidad (employee, weekday) chocaría con las filas por borrar.
+        validators = []
 
     def validate_weekday(self, value):
         if not 1 <= value <= 7:
             raise serializers.ValidationError("weekday must be 1 (Mon) .. 7 (Sun).")
         return value
+
+    def validate(self, attrs):
+        has_hours = attrs.get("start_hour") is not None and attrs.get("end_hour") is not None
+        if not attrs.get("shift") and not has_hours:
+            raise serializers.ValidationError("Provide shift or start_hour+end_hour.")
+        if has_hours and attrs["start_hour"] == attrs["end_hour"]:
+            raise serializers.ValidationError("start_hour and end_hour must differ.")
+        return attrs
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["start_hour"] = instance.shift.start_hour
+        data["end_hour"] = instance.shift.end_hour
+        data["shift_name"] = instance.shift.name
+        return data
 
 
 class TaskAssignmentSerializer(serializers.ModelSerializer):
