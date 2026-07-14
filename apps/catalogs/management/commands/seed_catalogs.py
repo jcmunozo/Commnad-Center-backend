@@ -72,6 +72,10 @@ class Command(BaseCommand):
             ("DOC", "Documentation"), ("CODE_REVIEW", "Code Review"), ("BUG_FIX", "Bug Fix"),
             ("DEVOPS", "DevOps"), ("DESIGN", "Design"), ("ANALYSIS", "Analysis"),
             ("DEPLOYMENT", "Deployment"), ("SUPPORT", "Support"),
+            # Delivery-lifecycle types (workflow del PM)
+            ("INT_SPEC", "Integration Specification"), ("TECH_DESIGN", "Technical Design"),
+            ("INTERNAL_DELIVERY", "Internal Delivery"), ("QA_DELIVERY", "QA Delivery"),
+            ("KT", "KT (Knowledge Transfer)"),
         ])
         self._simple(m.HttpMethod, [
             ("GET", "GET"), ("POST", "POST"), ("PUT", "PUT"), ("PATCH", "PATCH"),

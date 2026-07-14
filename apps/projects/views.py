@@ -8,22 +8,28 @@ from apps.core.views import BaseModelViewSet
 
 from . import services
 from .filters import (
-    ApiComponentFilter,
-    EndpointFilter,
     MilestoneFilter,
     ProjectFilter,
+    SubTaskFilter,
     TaskFilter,
 )
-from .models import ApiComponent, Endpoint, Milestone, MilestoneTask, Project, ProjectApiRef, Task
+from .models import (
+    Milestone,
+    MilestoneTask,
+    Project,
+    ProjectPhase,
+    SubTask,
+    Task,
+)
 from .serializers import (
-    ApiComponentSerializer,
     DashboardSerializer,
-    EndpointSerializer,
     MilestoneSerializer,
     ProgressSerializer,
     ProjectDetailSerializer,
     ProjectListSerializer,
+    ProjectPhaseSerializer,
     ProjectWriteSerializer,
+    SubTaskSerializer,
     TaskDependencySerializer,
     TaskDetailSerializer,
     TaskListSerializer,
@@ -34,13 +40,14 @@ from .serializers import (
 class ProjectViewSet(BaseModelViewSet):
     """CRUD + PMO analytics for projects."""
 
+    legacy_prefix = "PRJ"
     filterset_class = ProjectFilter
-    search_fields = ["name", "legacy_code", "client__name"]
+    search_fields = ["name", "legacy_code", "trigger_name", "target_name"]
     ordering_fields = ["name", "planned_end", "progress_pct", "created_at"]
     serializer_class = ProjectDetailSerializer
 
     def get_queryset(self):
-        return Project.active.select_related("client", "status", "priority", "health").all()
+        return Project.active.select_related("status", "priority", "health").all()
 
     def get_serializer_class(self):
         return {
@@ -64,46 +71,33 @@ class ProjectViewSet(BaseModelViewSet):
         data = services.weighted_progress(self.get_object())
         return Response(ProgressSerializer(data).data)
 
+    PHASE_ORDER = [code for code, _ in ProjectPhase.PHASES]
 
-class ApiComponentViewSet(BaseModelViewSet):
-    """CRUD for reusable API components + reuse references."""
-
-    serializer_class = ApiComponentSerializer
-    filterset_class = ApiComponentFilter
-    search_fields = ["name", "legacy_code"]
-    ordering_fields = ["name", "created_at"]
-
-    def get_queryset(self):
-        return ApiComponent.active.select_related("owner_project", "status").all()
-
-    @action(detail=True, methods=["post"])
-    def reference(self, request, pk=None):
-        """Reference this API from another project (reuse, Fase 2 #11).
-
-        Body: ``{"project": "<uuid>", "note": "..."}``.
-        """
-        api = self.get_object()
-        project_id = request.data.get("project")
-        ref, created = ProjectApiRef.objects.get_or_create(
-            api=api, project_id=project_id, defaults={"note": request.data.get("note", "")})
-        return Response({"created": created, "id": ref.id},
-                        status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
-
-
-class EndpointViewSet(BaseModelViewSet):
-    write_roles = ("PMO Admin", "Project Manager", "Team Member")
-    serializer_class = EndpointSerializer
-    filterset_class = EndpointFilter
-    search_fields = ["path", "legacy_code"]
-    ordering_fields = ["path", "created_at"]
-
-    def get_queryset(self):
-        return Endpoint.active.select_related("api", "http_method", "status").all()
+    @extend_schema(request=ProjectPhaseSerializer(many=True),
+                   responses=ProjectPhaseSerializer(many=True))
+    @action(detail=True, methods=["get", "put"])
+    def phases(self, request, pk=None):
+        """Get or replace the project's phase timeline (Dev/SIT/UAT/Prod/Hypercare)."""
+        project = self.get_object()
+        if request.method == "PUT":
+            serializer = ProjectPhaseSerializer(data=request.data, many=True)
+            serializer.is_valid(raise_exception=True)
+            codes = [row["phase"] for row in serializer.validated_data]
+            if len(codes) != len(set(codes)):
+                return Response({"detail": "Duplicate phase codes in payload."},
+                                status=status.HTTP_400_BAD_REQUEST)
+            project.phases.all().delete()
+            ProjectPhase.objects.bulk_create([
+                ProjectPhase(project=project, **row) for row in serializer.validated_data
+            ])
+        qs = sorted(project.phases.all(), key=lambda p: self.PHASE_ORDER.index(p.phase))
+        return Response(ProjectPhaseSerializer(qs, many=True).data)
 
 
 class TaskViewSet(BaseModelViewSet):
     """CRUD for tasks + assignment/dependency sub-actions."""
 
+    legacy_prefix = "TSK"
     write_roles = ("PMO Admin", "Project Manager", "Team Member")
     filterset_class = TaskFilter
     search_fields = ["name", "legacy_code"]
@@ -111,7 +105,18 @@ class TaskViewSet(BaseModelViewSet):
     serializer_class = TaskDetailSerializer
 
     def get_queryset(self):
-        return Task.active.select_related("project", "status", "priority", "task_type").all()
+        from django.db.models import Prefetch
+
+        from apps.resources.models import TaskAssignment
+
+        return (
+            Task.active.select_related("project", "status", "priority", "task_type")
+            .prefetch_related(Prefetch(
+                "assignments",
+                queryset=TaskAssignment.active.select_related("employee"),
+                to_attr="active_assignments",
+            ))
+        )
 
     def get_serializer_class(self):
         return {
@@ -120,6 +125,60 @@ class TaskViewSet(BaseModelViewSet):
             "update": TaskWriteSerializer,
             "partial_update": TaskWriteSerializer,
         }.get(self.action, TaskDetailSerializer)
+
+    def _stamp_delivery(self, task):
+        """Una tarea DONE fecha la entrega de sus asignaciones activas."""
+        from django.utils import timezone
+
+        if task.status_id == "DONE":
+            task.assignments.filter(is_active=True, delivery_date__isnull=True).update(
+                delivery_date=timezone.now())
+
+    def perform_create(self, serializer):
+        super().perform_create(serializer)
+        self._stamp_delivery(serializer.instance)
+
+    def perform_update(self, serializer):
+        super().perform_update(serializer)
+        self._stamp_delivery(serializer.instance)
+
+    @action(detail=True, methods=["get", "put"])
+    def assignees(self, request, pk=None):
+        """Get or replace the task's active assignees.
+
+        PUT body: ``{"employees": ["<uuid>", ...]}``. Reactivates soft-deleted
+        (task, employee) rows instead of recreating them — the DB unique
+        constraint spans soft-deleted rows too.
+        """
+        from django.utils import timezone
+
+        from apps.resources.models import Employee, TaskAssignment
+
+        task = self.get_object()
+        if request.method == "PUT":
+            wanted = set(request.data.get("employees", []))
+            if wanted and Employee.active.filter(id__in=wanted).count() != len(wanted):
+                return Response({"detail": "Unknown or inactive employee id."},
+                                status=status.HTTP_400_BAD_REQUEST)
+            from apps.core.views import next_legacy_code
+
+            delivery = timezone.now() if task.status_id == "DONE" else None
+            existing = {str(a.employee_id): a for a in task.assignments.all()}
+            for emp_id, a in existing.items():
+                if emp_id in wanted and not a.is_active:
+                    a.is_active = True
+                    a.assigned_date = timezone.now()
+                    a.delivery_date = a.delivery_date or delivery
+                    a.save(update_fields=["is_active", "assigned_date", "delivery_date"])
+                elif emp_id not in wanted and a.is_active:
+                    a.soft_delete()
+            for emp_id in wanted - existing.keys():
+                TaskAssignment.objects.create(
+                    task=task, employee_id=emp_id, assigned_date=timezone.now(),
+                    delivery_date=delivery,
+                    legacy_code=next_legacy_code(TaskAssignment, "ASG"))
+        rows = task.assignments.filter(is_active=True).select_related("employee")
+        return Response([{"id": str(a.employee_id), "name": a.employee.name} for a in rows])
 
     @action(detail=True, methods=["post"], serializer_class=TaskDependencySerializer)
     def dependencies(self, request, pk=None):
@@ -135,13 +194,14 @@ class TaskViewSet(BaseModelViewSet):
 class MilestoneViewSet(BaseModelViewSet):
     """CRUD for milestones; status/progress derived from linked tasks."""
 
+    legacy_prefix = "MIL"
     serializer_class = MilestoneSerializer
     filterset_class = MilestoneFilter
     search_fields = ["name", "legacy_code"]
     ordering_fields = ["target_date", "created_at"]
 
     def get_queryset(self):
-        return Milestone.active.select_related("project", "api", "owner_employee").all()
+        return Milestone.active.select_related("project", "owner_employee").all()
 
     @action(detail=True, methods=["post"])
     def tasks(self, request, pk=None):
@@ -151,3 +211,17 @@ class MilestoneViewSet(BaseModelViewSet):
         link, created = MilestoneTask.objects.get_or_create(milestone=milestone, task=task)
         return Response({"created": created, "id": link.id},
                         status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+
+class SubTaskViewSet(BaseModelViewSet):
+    """Pendientes (subtareas) colgados de una tarea."""
+
+    legacy_prefix = "SUB"
+    write_roles = ("PMO Admin", "Project Manager", "Team Member")
+    serializer_class = SubTaskSerializer
+    filterset_class = SubTaskFilter
+    search_fields = ["description", "legacy_code"]
+    ordering_fields = ["due_date", "created_at"]
+
+    def get_queryset(self):
+        return SubTask.active.select_related("task", "assignee", "status", "priority").all()

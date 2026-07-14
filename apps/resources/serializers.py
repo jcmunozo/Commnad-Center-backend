@@ -33,11 +33,13 @@ class EmployeeShiftSerializer(serializers.ModelSerializer):
 
 class TaskAssignmentSerializer(serializers.ModelSerializer):
     employee_name = serializers.CharField(source="employee.name", read_only=True)
+    task_name = serializers.CharField(source="task.name", read_only=True)
+    task_code = serializers.CharField(source="task.legacy_code", read_only=True, default=None)
 
     class Meta:
         model = TaskAssignment
-        fields = ("id", "legacy_code", "task", "employee", "employee_name",
-                  "assigned_date", "delivery_date", "is_active")
+        fields = ("id", "legacy_code", "task", "task_name", "task_code", "employee",
+                  "employee_name", "assigned_date", "delivery_date", "is_active")
         read_only_fields = ("id", "is_active")
 
 
@@ -48,3 +50,5 @@ class WorkloadRowSerializer(serializers.Serializer):
     capacity_hours = serializers.FloatField()
     workload_pct = serializers.FloatField()
     alert = serializers.CharField()
+    shift_today = serializers.CharField(allow_null=True)
+    open_tasks = serializers.IntegerField()

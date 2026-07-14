@@ -2,7 +2,6 @@ import factory
 from factory.django import DjangoModelFactory
 
 from apps.catalogs import models as cat
-from apps.clients.models import Client
 from apps.projects.models import Project, Task
 
 
@@ -29,21 +28,12 @@ def task_type(code="DEV"):
     return cat.TaskType.objects.get_or_create(code=code, defaults={"name": code})[0]
 
 
-class ClientFactory(DjangoModelFactory):
-    class Meta:
-        model = Client
-        django_get_or_create = ("name",)
-
-    name = factory.Sequence(lambda n: f"Client {n}")
-
-
 class ProjectFactory(DjangoModelFactory):
     class Meta:
         model = Project
 
     name = factory.Sequence(lambda n: f"Project {n}")
     legacy_code = factory.Sequence(lambda n: f"PRJ-{n:03d}")
-    client = factory.SubFactory(ClientFactory)
     project_type = factory.LazyFunction(project_type)
     status = factory.LazyFunction(project_status)
     priority = factory.LazyFunction(sev)

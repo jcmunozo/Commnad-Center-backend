@@ -22,6 +22,7 @@ from .serializers import (
 class EmployeeViewSet(BaseModelViewSet):
     """Employee roster. Writes limited to PMO Admin."""
 
+    legacy_prefix = "EMP"
     write_roles = (ROLE_ADMIN,)
     filterset_class = EmployeeFilter
     search_fields = ["name", "role", "legacy_code"]
@@ -58,6 +59,7 @@ class EmployeeViewSet(BaseModelViewSet):
 class TaskAssignmentViewSet(BaseModelViewSet):
     """Assign collaborators to tasks (drives workload)."""
 
+    legacy_prefix = "ASG"
     write_roles = (ROLE_ADMIN, ROLE_PM)
     serializer_class = TaskAssignmentSerializer
     filterset_class = TaskAssignmentFilter

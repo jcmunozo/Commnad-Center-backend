@@ -9,7 +9,6 @@ pytestmark = pytest.mark.django_db
 def test_project_write_rejects_end_before_start():
     data = {
         "name": "X",
-        "client": ProjectFactory().client_id,
         "project_type": project_type().code,
         "status": project_status().code,
         "priority": sev().code,
@@ -21,7 +20,7 @@ def test_project_write_rejects_end_before_start():
     assert "planned_end" in str(serializer.errors)
 
 
-def test_task_write_rejects_endpoint_from_other_api():
+def test_task_write_accepts_minimal_payload():
     project = ProjectFactory()
     data = {
         "name": "T",

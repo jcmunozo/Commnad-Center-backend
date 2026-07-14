@@ -21,7 +21,6 @@ def test_pm_can_create_project(pm_client):
     project = ProjectFactory()
     payload = {
         "name": "PM Project",
-        "client": str(project.client_id),
         "project_type": project.project_type_id,
         "status": project.status_id,
         "priority": project.priority_id,

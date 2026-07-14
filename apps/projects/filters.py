@@ -1,6 +1,6 @@
 from django_filters import rest_framework as filters
 
-from .models import ApiComponent, Endpoint, Milestone, Project, Task
+from .models import Milestone, Project, SubTask, Task
 
 
 class ProjectFilter(filters.FilterSet):
@@ -10,7 +10,7 @@ class ProjectFilter(filters.FilterSet):
 
     class Meta:
         model = Project
-        fields = ["status", "priority", "health", "client", "project_type", "is_active"]
+        fields = ["status", "priority", "health", "project_type", "is_active"]
 
 
 class TaskFilter(filters.FilterSet):
@@ -22,7 +22,7 @@ class TaskFilter(filters.FilterSet):
 
     class Meta:
         model = Task
-        fields = ["project", "status", "priority", "task_type", "api", "endpoint", "is_active"]
+        fields = ["project", "status", "priority", "task_type", "is_active"]
 
     def filter_overdue(self, queryset, name, value):
         from django.utils import timezone
@@ -32,22 +32,19 @@ class TaskFilter(filters.FilterSet):
         return queryset
 
 
-class ApiComponentFilter(filters.FilterSet):
-    class Meta:
-        model = ApiComponent
-        fields = ["owner_project", "status", "is_active"]
-
-
-class EndpointFilter(filters.FilterSet):
-    class Meta:
-        model = Endpoint
-        fields = ["api", "http_method", "status", "is_active"]
-
-
 class MilestoneFilter(filters.FilterSet):
     target_before = filters.DateTimeFilter(field_name="target_date", lookup_expr="lte")
     target_after = filters.DateTimeFilter(field_name="target_date", lookup_expr="gte")
 
     class Meta:
         model = Milestone
-        fields = ["project", "api", "owner_employee", "is_active"]
+        fields = ["project", "owner_employee", "is_active"]
+
+
+class SubTaskFilter(filters.FilterSet):
+    project = filters.UUIDFilter(field_name="task__project")
+    due_before = filters.DateTimeFilter(field_name="due_date", lookup_expr="lte")
+
+    class Meta:
+        model = SubTask
+        fields = ["task", "status", "assignee", "priority", "is_active"]

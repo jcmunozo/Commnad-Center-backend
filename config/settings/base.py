@@ -27,7 +27,6 @@ THIRD_PARTY_APPS = [
     "drf_spectacular",
     "corsheaders",
     "simple_history",
-    "import_export",
     "guardian",
 ]
 LOCAL_APPS = [
@@ -38,7 +37,6 @@ LOCAL_APPS = [
     "apps.projects",
     "apps.resources",
     "apps.tracking",
-    "imports",
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 

@@ -12,6 +12,8 @@ class EmployeeFilter(filters.FilterSet):
 
 
 class TaskAssignmentFilter(filters.FilterSet):
+    project = filters.UUIDFilter(field_name="task__project")
+
     class Meta:
         model = TaskAssignment
         fields = ["task", "employee", "is_active"]

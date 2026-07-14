@@ -3,18 +3,16 @@ from rest_framework.routers import DefaultRouter
 
 from .dashboards import AlertsView, PortfolioDashboardView
 from .views import (
-    ApiComponentViewSet,
-    EndpointViewSet,
     MilestoneViewSet,
     ProjectViewSet,
+    SubTaskViewSet,
     TaskViewSet,
 )
 
 router = DefaultRouter()
 router.register("projects", ProjectViewSet, basename="project")
-router.register("apis", ApiComponentViewSet, basename="api")
-router.register("endpoints", EndpointViewSet, basename="endpoint")
 router.register("tasks", TaskViewSet, basename="task")
+router.register("subtasks", SubTaskViewSet, basename="subtask")
 router.register("milestones", MilestoneViewSet, basename="milestone")
 
 urlpatterns = [

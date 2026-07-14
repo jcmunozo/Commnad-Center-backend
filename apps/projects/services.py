@@ -5,9 +5,7 @@ from django.db.models import Count, DecimalField, F, Q, Sum
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
-from apps.tracking.models import Issue, Risk
-
-from .models import Endpoint, Task
+from .models import SubTask, Task
 
 CLOSED_TASK = ("DONE", "CANCELLED")
 
@@ -18,20 +16,15 @@ def project_dashboard(project) -> dict:
     tasks = Task.active.filter(project=project)
     open_tasks = tasks.exclude(status_id__in=CLOSED_TASK)
 
-    endpoints = Endpoint.active.filter(api__owner_project=project)
-    issues = Issue.active.filter(project=project).exclude(status_id__in=("RESOLVED", "CLOSED"))
-    risks = Risk.active.filter(project=project).exclude(status_id="CLOSED")
+    open_subtasks = SubTask.active.filter(task__project=project).exclude(
+        status_id__in=("COMPLETED", "CANCELLED"))
 
     return {
         "project_id": str(project.id),
         "open_tasks": open_tasks.count(),
         "overdue_tasks": open_tasks.filter(planned_end__lt=now).count(),
-        "open_issues": issues.count(),
-        "open_risks": risks.count(),
-        "critical_risks": risks.filter(probability__gte=4, impact__gte=4).count(),
-        "total_apis": project.owned_apis(manager="active").count(),
-        "endpoints_total": endpoints.count(),
-        "endpoints_done": endpoints.filter(status_id="DONE").count(),
+        "open_subtasks": open_subtasks.count(),
+        "overdue_subtasks": open_subtasks.filter(due_date__lt=now).count(),
     }
 
 

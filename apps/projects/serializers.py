@@ -1,10 +1,10 @@
 from rest_framework import serializers
 
 from .models import (
-    ApiComponent,
-    Endpoint,
     Milestone,
     Project,
+    ProjectPhase,
+    SubTask,
     Task,
     TaskDependency,
 )
@@ -13,33 +13,43 @@ from .selectors import milestone_progress
 
 # ----------------------------- Project -----------------------------
 class ProjectListSerializer(serializers.ModelSerializer):
-    client_name = serializers.CharField(source="client.name", read_only=True)
     status = serializers.CharField(source="status_id", read_only=True)
     priority = serializers.CharField(source="priority_id", read_only=True)
     health = serializers.CharField(source="health_id", read_only=True)
 
     class Meta:
         model = Project
-        fields = ("id", "legacy_code", "name", "client_name", "project_type",
-                  "status", "priority", "health", "progress_pct", "planned_end")
+        fields = ("id", "legacy_code", "name", "project_type",
+                  "status", "priority", "health", "progress_pct", "planned_end",
+                  "trigger_name", "target_name")
+
+
+class ProjectPhaseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProjectPhase
+        fields = ("phase", "planned_start", "planned_end")
 
 
 class ProjectDetailSerializer(serializers.ModelSerializer):
-    client_name = serializers.CharField(source="client.name", read_only=True)
+    phases = ProjectPhaseSerializer(many=True, read_only=True)
 
     class Meta:
         model = Project
-        fields = ("id", "legacy_code", "name", "client", "client_name", "project_type",
+        fields = ("id", "legacy_code", "name", "description", "target_name", "trigger_name",
+                  "project_type",
                   "status", "priority", "health", "start_date", "planned_end", "actual_end",
-                  "progress_pct", "planned_hours", "consumed_hours", "comments",
+                  "progress_pct", "planned_hours", "consumed_hours", "comments", "phases",
                   "custom_fields", "is_active", "created_at", "updated_at")
         read_only_fields = ("id", "is_active", "created_at", "updated_at")
 
 
 class ProjectWriteSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(read_only=True)
+
     class Meta:
         model = Project
-        fields = ("legacy_code", "name", "client", "project_type", "status", "priority",
+        fields = ("id", "legacy_code", "name", "description", "target_name", "trigger_name",
+                  "project_type", "status", "priority",
                   "health", "start_date", "planned_end", "actual_end", "progress_pct",
                   "planned_hours", "consumed_hours", "comments", "custom_fields")
 
@@ -50,34 +60,25 @@ class ProjectWriteSerializer(serializers.ModelSerializer):
         return attrs
 
 
-# ----------------------------- API / Endpoint -----------------------------
-class ApiComponentSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ApiComponent
-        fields = ("id", "legacy_code", "owner_project", "name", "description", "version",
-                  "status", "owner_employee", "comments", "is_active")
-        read_only_fields = ("id", "is_active")
-
-
-class EndpointSerializer(serializers.ModelSerializer):
-    owner_project = serializers.UUIDField(source="owner_project_id", read_only=True)
-
-    class Meta:
-        model = Endpoint
-        fields = ("id", "legacy_code", "api", "owner_project", "http_method", "path",
-                  "description", "status", "owner_employee", "comments", "is_active")
-        read_only_fields = ("id", "owner_project", "is_active")
-
-
 # ----------------------------- Task -----------------------------
 class TaskListSerializer(serializers.ModelSerializer):
     project_name = serializers.CharField(source="project.name", read_only=True)
     status = serializers.CharField(source="status_id", read_only=True)
+    assignees = serializers.SerializerMethodField()
 
     class Meta:
         model = Task
         fields = ("id", "legacy_code", "name", "project", "project_name", "task_type",
-                  "status", "priority", "planned_end", "progress_pct")
+                  "status", "priority", "planned_end", "progress_pct", "assignees")
+
+    def get_assignees(self, obj):
+        # Solo asignaciones activas: la M2M cruda incluye filas soft-borradas.
+        # ``active_assignments`` viene del Prefetch del viewset; fallback por si
+        # se serializa fuera de esa queryset.
+        assignments = getattr(obj, "active_assignments", None)
+        if assignments is None:
+            assignments = obj.assignments.filter(is_active=True).select_related("employee")
+        return [{"id": str(a.employee_id), "name": a.employee.name} for a in assignments]
 
 
 class TaskDetailSerializer(serializers.ModelSerializer):
@@ -86,7 +87,7 @@ class TaskDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Task
-        fields = ("id", "legacy_code", "name", "project", "api", "endpoint", "task_type",
+        fields = ("id", "legacy_code", "name", "project", "task_type",
                   "status", "priority", "planned_start", "planned_end", "estimated_hours",
                   "actual_hours", "progress_pct", "notes", "assignee_ids", "blocked_by_ids",
                   "custom_fields", "is_active", "created_at", "updated_at")
@@ -94,17 +95,13 @@ class TaskDetailSerializer(serializers.ModelSerializer):
 
 
 class TaskWriteSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(read_only=True)
+
     class Meta:
         model = Task
-        fields = ("legacy_code", "name", "project", "api", "endpoint", "task_type", "status",
+        fields = ("id", "legacy_code", "name", "project", "task_type", "status",
                   "priority", "planned_start", "planned_end", "estimated_hours", "actual_hours",
                   "progress_pct", "notes", "custom_fields")
-
-    def validate(self, attrs):
-        api, endpoint = attrs.get("api"), attrs.get("endpoint")
-        if endpoint and api and endpoint.api_id != api.id:
-            raise serializers.ValidationError("endpoint does not belong to the given api.")
-        return attrs
 
 
 class TaskDependencySerializer(serializers.ModelSerializer):
@@ -118,13 +115,25 @@ class TaskDependencySerializer(serializers.ModelSerializer):
         return attrs
 
 
+class SubTaskSerializer(serializers.ModelSerializer):
+    task_name = serializers.CharField(source="task.name", read_only=True)
+    task_code = serializers.CharField(source="task.legacy_code", read_only=True, default=None)
+    assignee_name = serializers.CharField(source="assignee.name", read_only=True, default=None)
+
+    class Meta:
+        model = SubTask
+        fields = ("id", "legacy_code", "task", "task_name", "task_code", "description",
+                  "assignee", "assignee_name", "due_date", "priority", "status", "is_active")
+        read_only_fields = ("id", "is_active")
+
+
 # ----------------------------- Milestone -----------------------------
 class MilestoneSerializer(serializers.ModelSerializer):
     progress = serializers.SerializerMethodField()
 
     class Meta:
         model = Milestone
-        fields = ("id", "legacy_code", "project", "api", "name", "owner_employee",
+        fields = ("id", "legacy_code", "project", "name", "owner_employee",
                   "target_date", "actual_date", "comments", "progress", "is_active")
         read_only_fields = ("id", "is_active", "progress")
 
@@ -138,12 +147,8 @@ class DashboardSerializer(serializers.Serializer):
     project_id = serializers.CharField()
     open_tasks = serializers.IntegerField()
     overdue_tasks = serializers.IntegerField()
-    open_issues = serializers.IntegerField()
-    open_risks = serializers.IntegerField()
-    critical_risks = serializers.IntegerField()
-    total_apis = serializers.IntegerField()
-    endpoints_total = serializers.IntegerField()
-    endpoints_done = serializers.IntegerField()
+    open_subtasks = serializers.IntegerField()
+    overdue_subtasks = serializers.IntegerField()
 
 
 class ProgressSerializer(serializers.Serializer):
