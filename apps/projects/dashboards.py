@@ -44,7 +44,7 @@ class PortfolioDashboardView(APIView):
 
 
 class AlertsView(APIView):
-    """Schedule deviations: pendientes (subtasks) e hitos vencidos."""
+    """Schedule deviations: overdue subtasks and milestones."""
 
     permission_classes = [role_required(ROLE_ADMIN, ROLE_PM)]
 

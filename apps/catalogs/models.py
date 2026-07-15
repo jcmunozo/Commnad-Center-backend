@@ -77,6 +77,14 @@ class IssueStatus(CatalogBase):
         db_table = "issue_status"
 
 
+class TicketStatus(CatalogBase):
+    is_closed = models.BooleanField(default=False)
+
+    class Meta(CatalogBase.Meta):
+        db_table = "ticket_status"
+        verbose_name_plural = "ticket statuses"
+
+
 class MilestoneStatus(CatalogBase):
     is_closed = models.BooleanField(default=False)
 

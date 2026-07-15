@@ -127,7 +127,7 @@ class TaskViewSet(BaseModelViewSet):
         }.get(self.action, TaskDetailSerializer)
 
     def _stamp_delivery(self, task):
-        """Una tarea DONE fecha la entrega de sus asignaciones activas."""
+        """A DONE task stamps the delivery date on its active assignments."""
         from django.utils import timezone
 
         if task.status_id == "DONE":
@@ -214,7 +214,7 @@ class MilestoneViewSet(BaseModelViewSet):
 
 
 class SubTaskViewSet(BaseModelViewSet):
-    """Pendientes (subtareas) colgados de una tarea."""
+    """Subtasks hanging off a task (debt or reminders)."""
 
     legacy_prefix = "SUB"
     write_roles = ("PMO Admin", "Project Manager", "Team Member")

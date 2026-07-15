@@ -82,3 +82,5 @@ class WorkloadRowSerializer(serializers.Serializer):
     alert = serializers.CharField()
     shift_today = serializers.CharField(allow_null=True)
     open_tasks = serializers.IntegerField()
+    ticket_hours = serializers.FloatField()
+    open_tickets = serializers.IntegerField()

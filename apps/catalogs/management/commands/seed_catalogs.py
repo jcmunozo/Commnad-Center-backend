@@ -48,6 +48,11 @@ class Command(BaseCommand):
             ("IN_RESOLUTION", "In Resolution", False), ("RESOLVED", "Resolved", True),
             ("CLOSED", "Closed", True),
         ])
+        self._closed(m.TicketStatus, [
+            ("WIP", "Work In Progress", False),
+            ("PAUSED", "Paused", False),
+            ("RESOLVED", "Resolved", True),
+        ])
         self._closed(m.MilestoneStatus, [
             ("PENDING", "Pending", False), ("IN_PROGRESS", "In Progress", False),
             ("COMPLETED", "Completed", True), ("DELAYED", "Delayed", False),

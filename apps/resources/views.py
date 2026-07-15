@@ -88,7 +88,7 @@ class WorkloadView(APIView):
 
 
 def _shift_for_hours(start: int, end: int):
-    """Turno de catálogo para un rango libre; lo crea si no existe (H07_16)."""
+    """Catalog shift for a free hour range; created if missing (H07_16)."""
     from apps.catalogs.models import Shift
 
     shift, _ = Shift.objects.get_or_create(

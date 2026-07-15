@@ -15,6 +15,7 @@ CATALOGS = {
     "endpoint-statuses": models.EndpointStatus,
     "risk-statuses": models.RiskStatus,
     "issue-statuses": models.IssueStatus,
+    "ticket-statuses": models.TicketStatus,
     "milestone-statuses": models.MilestoneStatus,
     "action-statuses": models.ActionStatus,
     "update-types": models.UpdateType,

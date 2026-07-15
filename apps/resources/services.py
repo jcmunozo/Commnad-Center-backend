@@ -1,10 +1,12 @@
 """Workload computation: task hours prorated across collaborators (Fase 2)."""
+from datetime import datetime, time, timedelta, timezone as dt_timezone
 from decimal import Decimal
 
 from django.db.models import Count
 from django.utils import timezone
 
 from apps.projects.models import Task
+from apps.tickets.services import employee_ticket_hours
 
 from .models import Employee, EmployeeShift, TaskAssignment
 
@@ -17,7 +19,16 @@ def employee_workload(period_start=None, period_end=None) -> list[dict]:
     Each active task's ``estimated_hours`` is split equally among its active
     assignees; every employee accumulates their share over active tasks.
     Optional ``period_*`` filters by the task's planned window.
+
+    Ticket WIP hours (clipped to the period; defaults to the current ISO week
+    so lifetime hours aren't compared against weekly capacity) add to
+    ``assigned_hours`` and therefore to ``workload_pct``/``alert``.
     """
+    now = timezone.now()
+    ticket_start = period_start or _start_of_iso_week(now)
+    ticket_end = period_end or now
+    ticket_data = employee_ticket_hours(ticket_start, ticket_end)
+
     task_qs = Task.active.exclude(status_id__in=ACTIVE_TASK_EXCLUDE)
     if period_start:
         task_qs = task_qs.filter(planned_end__gte=period_start)
@@ -52,7 +63,9 @@ def employee_workload(period_start=None, period_end=None) -> list[dict]:
 
     results = []
     for emp in Employee.active.all():
-        assigned = shares.get(emp.id, Decimal(0))
+        tickets = ticket_data.get(str(emp.id), {})
+        ticket_hours = tickets.get("ticket_hours", 0.0)
+        assigned = shares.get(emp.id, Decimal(0)) + Decimal(str(ticket_hours))
         capacity = emp.capacity_hours or Decimal(0)
         workload = float(assigned / capacity) if capacity else 0.0
         results.append({
@@ -64,8 +77,15 @@ def employee_workload(period_start=None, period_end=None) -> list[dict]:
             "alert": _alert(workload),
             "shift_today": shift_today.get(emp.id),
             "open_tasks": open_tasks.get(emp.id, 0),
+            "ticket_hours": round(ticket_hours, 2),
+            "open_tickets": tickets.get("open_tickets", 0),
         })
     return results
+
+
+def _start_of_iso_week(now: datetime) -> datetime:
+    monday = now.date() - timedelta(days=now.isoweekday() - 1)
+    return datetime.combine(monday, time.min, tzinfo=dt_timezone.utc)
 
 
 def _alert(workload: float) -> str:
