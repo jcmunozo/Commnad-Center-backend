@@ -7,6 +7,8 @@ class ProjectFilter(filters.FilterSet):
     name = filters.CharFilter(lookup_expr="icontains")
     planned_end_before = filters.DateTimeFilter(field_name="planned_end", lookup_expr="lte")
     planned_end_after = filters.DateTimeFilter(field_name="planned_end", lookup_expr="gte")
+    # filters on the per-user is_favorite annotation added in the viewset
+    favorite = filters.BooleanFilter(field_name="is_favorite")
 
     class Meta:
         model = Project

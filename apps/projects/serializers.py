@@ -16,12 +16,13 @@ class ProjectListSerializer(serializers.ModelSerializer):
     status = serializers.CharField(source="status_id", read_only=True)
     priority = serializers.CharField(source="priority_id", read_only=True)
     health = serializers.CharField(source="health_id", read_only=True)
+    is_favorite = serializers.BooleanField(read_only=True, default=False)
 
     class Meta:
         model = Project
         fields = ("id", "legacy_code", "name", "project_type",
                   "status", "priority", "health", "progress_pct", "planned_end",
-                  "trigger_name", "target_name")
+                  "trigger_name", "target_name", "is_favorite")
 
 
 class ProjectPhaseSerializer(serializers.ModelSerializer):

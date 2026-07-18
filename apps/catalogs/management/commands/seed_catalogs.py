@@ -82,6 +82,11 @@ class Command(BaseCommand):
             ("INTERNAL_DELIVERY", "Internal Delivery"), ("QA_DELIVERY", "QA Delivery"),
             ("KT", "KT (Knowledge Transfer)"),
         ])
+        self._simple(m.LeaveType, [
+            ("VACATION", "Vacation"), ("SICK", "Sick Leave"),
+            ("MEDICAL_APPT", "Medical Appointment"), ("PERSONAL", "Personal Day"),
+            ("OTHER", "Other"),
+        ])
         self._simple(m.HttpMethod, [
             ("GET", "GET"), ("POST", "POST"), ("PUT", "PUT"), ("PATCH", "PATCH"),
             ("DELETE", "DELETE"), ("OPTIONS", "OPTIONS"), ("HEAD", "HEAD"),
@@ -95,7 +100,8 @@ class Command(BaseCommand):
             ("VACATION", "Vacation"), ("INACTIVE", "Inactive"),
         ])
         self._simple(m.Location, [
-            ("COLOMBIA", "Colombia"), ("PHILIPPINES", "Philippines"), ("ARGENTINA", "Argentina"),
+            ("COLOMBIA", "Colombia"), ("PHILIPPINES", "Philippines"), ("CHILE", "Chile"),
+            ("ARGENTINA", "Argentina"),
             ("MEXICO", "Mexico"), ("SPAIN", "Spain"), ("INDIA", "India"),
             ("USA_EAST", "USA East"), ("USA_WEST", "USA West"), ("UK", "UK"), ("BRAZIL", "Brazil"),
         ])

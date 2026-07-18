@@ -1,9 +1,10 @@
 import factory
+from django.utils import timezone
 from factory.django import DjangoModelFactory
 
 from apps.catalogs import models as cat
 from apps.projects.models import Project, Task
-from apps.resources.models import Employee
+from apps.resources.models import Employee, Holiday, Leave
 from apps.tickets.models import Ticket
 
 
@@ -32,6 +33,14 @@ def task_type(code="DEV"):
 
 def employee_status(code="ACTIVE"):
     return cat.EmployeeStatus.objects.get_or_create(code=code, defaults={"name": code})[0]
+
+
+def leave_type(code="VACATION"):
+    return cat.LeaveType.objects.get_or_create(code=code, defaults={"name": code})[0]
+
+
+def location(code="COLOMBIA", name="Colombia"):
+    return cat.Location.objects.get_or_create(code=code, defaults={"name": name})[0]
 
 
 def ticket_status(code="WIP", is_closed=False):
@@ -75,6 +84,27 @@ class EmployeeFactory(DjangoModelFactory):
     name = factory.Sequence(lambda n: f"Employee {n}")
     legacy_code = factory.Sequence(lambda n: f"EMP-{n:03d}")
     status = factory.LazyFunction(employee_status)
+
+
+class LeaveFactory(DjangoModelFactory):
+    class Meta:
+        model = Leave
+
+    legacy_code = factory.Sequence(lambda n: f"LVE-{n:03d}")
+    employee = factory.SubFactory(EmployeeFactory)
+    leave_type = factory.LazyFunction(leave_type)
+    start_date = factory.LazyFunction(timezone.localdate)
+    end_date = factory.LazyFunction(timezone.localdate)
+
+
+class HolidayFactory(DjangoModelFactory):
+    class Meta:
+        model = Holiday
+
+    legacy_code = factory.Sequence(lambda n: f"HOL-{n:03d}")
+    name = factory.Sequence(lambda n: f"Holiday {n}")
+    location = factory.LazyFunction(location)
+    date = factory.LazyFunction(timezone.localdate)
 
 
 class TicketFactory(DjangoModelFactory):

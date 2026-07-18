@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Employee, EmployeeShift, TaskAssignment
+from .models import Employee, EmployeeShift, Holiday, Leave, TaskAssignment
 
 
 class EmployeeListSerializer(serializers.ModelSerializer):
@@ -73,6 +73,60 @@ class TaskAssignmentSerializer(serializers.ModelSerializer):
         read_only_fields = ("id", "is_active")
 
 
+class LeaveSerializer(serializers.ModelSerializer):
+    employee_name = serializers.CharField(source="employee.name", read_only=True)
+    employee_code = serializers.CharField(source="employee.legacy_code", read_only=True, default=None)
+    leave_type_name = serializers.CharField(source="leave_type.name", read_only=True)
+
+    class Meta:
+        model = Leave
+        fields = ("id", "legacy_code", "employee", "employee_name", "employee_code",
+                  "leave_type", "leave_type_name", "start_date", "end_date", "notes",
+                  "is_active", "created_at", "updated_at")
+        read_only_fields = ("id", "is_active", "created_at", "updated_at")
+
+    def validate(self, attrs):
+        start = attrs.get("start_date", getattr(self.instance, "start_date", None))
+        end = attrs.get("end_date", getattr(self.instance, "end_date", None))
+        if start and end and end < start:
+            raise serializers.ValidationError("end_date must be on or after start_date.")
+        return attrs
+
+
+class HolidaySerializer(serializers.ModelSerializer):
+    # (date, location) uniqueness comes from the model's conditional constraint:
+    # DRF maps it to a validator that ignores soft-deleted rows.
+    location_name = serializers.CharField(source="location.name", read_only=True)
+
+    class Meta:
+        model = Holiday
+        fields = ("id", "legacy_code", "name", "location", "location_name", "date",
+                  "is_active", "created_at", "updated_at")
+        read_only_fields = ("id", "is_active", "created_at", "updated_at")
+
+
+class LeaveCalendarAbsenceSerializer(serializers.Serializer):
+    employee_id = serializers.CharField()
+    name = serializers.CharField()
+    leave_type = serializers.CharField()
+
+
+class LeaveCalendarHolidaySerializer(serializers.Serializer):
+    location = serializers.CharField()
+    location_name = serializers.CharField()
+    name = serializers.CharField()
+
+
+class LeaveCalendarDaySerializer(serializers.Serializer):
+    date = serializers.DateField()
+    absent = LeaveCalendarAbsenceSerializer(many=True)
+    absent_count = serializers.IntegerField()
+    headcount = serializers.IntegerField()
+    absent_pct = serializers.FloatField()
+    alert = serializers.CharField()
+    holidays = LeaveCalendarHolidaySerializer(many=True)
+
+
 class WorkloadRowSerializer(serializers.Serializer):
     employee_id = serializers.CharField()
     name = serializers.CharField()
@@ -81,6 +135,11 @@ class WorkloadRowSerializer(serializers.Serializer):
     workload_pct = serializers.FloatField()
     alert = serializers.CharField()
     shift_today = serializers.CharField(allow_null=True)
+    on_shift_now = serializers.BooleanField(allow_null=True)
     open_tasks = serializers.IntegerField()
     ticket_hours = serializers.FloatField()
     open_tickets = serializers.IntegerField()
+    on_leave_today = serializers.BooleanField()
+    leave_days = serializers.IntegerField()
+    holiday_today = serializers.BooleanField()
+    holiday_days = serializers.IntegerField()

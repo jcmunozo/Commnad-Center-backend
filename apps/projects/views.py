@@ -1,3 +1,4 @@
+from django.db.models import BooleanField, Exists, OuterRef, Value
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
@@ -17,6 +18,7 @@ from .models import (
     Milestone,
     MilestoneTask,
     Project,
+    ProjectFavorite,
     ProjectPhase,
     SubTask,
     Task,
@@ -43,11 +45,28 @@ class ProjectViewSet(BaseModelViewSet):
     legacy_prefix = "PRJ"
     filterset_class = ProjectFilter
     search_fields = ["name", "legacy_code", "trigger_name", "target_name"]
-    ordering_fields = ["name", "planned_end", "progress_pct", "created_at"]
+    ordering_fields = ["name", "planned_end", "progress_pct", "created_at", "is_favorite"]
     serializer_class = ProjectDetailSerializer
 
     def get_queryset(self):
-        return Project.active.select_related("status", "priority", "health").all()
+        qs = Project.active.select_related("status", "priority", "health").all()
+        user = getattr(self.request, "user", None)
+        if user is None or not user.is_authenticated:
+            return qs.annotate(is_favorite=Value(False, output_field=BooleanField()))
+        return qs.annotate(is_favorite=Exists(
+            ProjectFavorite.objects.filter(project=OuterRef("pk"), user=user)))
+
+    @extend_schema(request=None, responses={200: {"type": "object",
+                   "properties": {"is_favorite": {"type": "boolean"}}}})
+    @action(detail=True, methods=["post"])
+    def favorite(self, request, pk=None):
+        """Toggle the current user's star on this project (personal, per-user)."""
+        project = self.get_object()
+        fav, created = ProjectFavorite.objects.get_or_create(
+            user=request.user, project=project)
+        if not created:
+            fav.delete()
+        return Response({"is_favorite": created})
 
     def get_serializer_class(self):
         return {

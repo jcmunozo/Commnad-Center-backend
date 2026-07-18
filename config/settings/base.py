@@ -127,6 +127,10 @@ AUTHENTICATION_BACKENDS = (
 
 CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=["http://localhost:4200"])
 
+# Share of the active roster on leave the same day that triggers a warning
+# in the leave calendar (0..1).
+LEAVE_ALERT_PCT = env.float("LEAVE_ALERT_PCT", default=0.25)
+
 # --- Celery ---
 CELERY_BROKER_URL = env("REDIS_URL", default="redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = CELERY_BROKER_URL

@@ -119,6 +119,11 @@ class HttpMethod(CatalogBase):
         db_table = "http_method"
 
 
+class LeaveType(CatalogBase):
+    class Meta(CatalogBase.Meta):
+        db_table = "leave_type"
+
+
 class EmployeeLevel(CatalogBase):
     class Meta(CatalogBase.Meta):
         db_table = "employee_level"

@@ -21,6 +21,7 @@ CATALOGS = {
     "update-types": models.UpdateType,
     "action-origins": models.ActionOrigin,
     "task-types": models.TaskType,
+    "leave-types": models.LeaveType,
     "http-methods": models.HttpMethod,
     "employee-levels": models.EmployeeLevel,
     "employee-statuses": models.EmployeeStatus,

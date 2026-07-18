@@ -52,6 +52,60 @@ class EmployeeShift(models.Model):
         ]
 
 
+class Leave(TimeStampedModel):
+    """Absence window (vacation, sick day, appointment...). Informational —
+    no approval workflow: registering it is enough (mirrors the old shared
+    Excel). Dates are inclusive; capacity math derives from these rows."""
+
+    legacy_code = models.CharField(max_length=20, unique=True, null=True, blank=True)
+    employee = models.ForeignKey(Employee, on_delete=models.PROTECT, related_name="leaves")
+    leave_type = models.ForeignKey("catalogs.LeaveType", on_delete=models.PROTECT, related_name="+")
+    start_date = models.DateField()
+    end_date = models.DateField()
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        db_table = "leave"
+        ordering = ["-start_date"]
+        indexes = [
+            models.Index(fields=["employee"]),
+            models.Index(fields=["start_date"]),
+            models.Index(fields=["end_date"]),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(end_date__gte=models.F("start_date")),
+                name="leave_dates_ordered"),
+        ]
+
+    def __str__(self):
+        return f"{self.legacy_code or ''} {self.employee_id} {self.start_date}..{self.end_date}".strip()
+
+
+class Holiday(TimeStampedModel):
+    """Public holiday for one country (a ``Location``): everyone based there
+    is off that day. Registered by hand per month/country — no per-employee
+    rows, unlike ``Leave``."""
+
+    legacy_code = models.CharField(max_length=20, unique=True, null=True, blank=True)
+    name = models.CharField(max_length=150)
+    location = models.ForeignKey("catalogs.Location", on_delete=models.PROTECT, related_name="+")
+    date = models.DateField()
+
+    class Meta:
+        db_table = "holiday"
+        ordering = ["date", "location_id"]
+        indexes = [models.Index(fields=["date"])]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["date", "location"], condition=models.Q(is_active=True),
+                name="holiday_date_location_uq"),
+        ]
+
+    def __str__(self):
+        return f"{self.date} {self.name} ({self.location_id})"
+
+
 class TaskAssignment(TimeStampedModel):
     """Links a task to a collaborator (N:M). Carries no hours: effort lives on
     the task (Fase 1 #10). Workload is prorated among a task's collaborators."""

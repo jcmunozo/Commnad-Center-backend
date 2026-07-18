@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from simple_history.models import HistoricalRecords
@@ -71,6 +72,26 @@ class ProjectPhase(models.Model):
 
     def __str__(self):
         return f"{self.project_id} {self.phase}"
+
+
+class ProjectFavorite(models.Model):
+    """Personal bookmark: each user stars the integrations they need at hand.
+    Per-user on purpose — one PM's stars must not reorder a teammate's list."""
+
+    id = models.BigAutoField(primary_key=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                             related_name="project_favorites")
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="favorites")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "project_favorite"
+        constraints = [
+            models.UniqueConstraint(fields=["user", "project"], name="project_favorite_uq"),
+        ]
+
+    def __str__(self):
+        return f"{self.user_id} ★ {self.project_id}"
 
 
 class Task(TimeStampedModel):
