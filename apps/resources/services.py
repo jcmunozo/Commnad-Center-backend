@@ -82,7 +82,7 @@ def employee_workload(period_start=None, period_end=None) -> list[dict]:
                                           today_date + timedelta(days=1))
 
     results = []
-    for emp in Employee.active.select_related("timezone").all():
+    for emp in Employee.active.select_related("timezone", "location").all():
         tickets = ticket_data.get(str(emp.id), {})
         ticket_hours = tickets.get("ticket_hours", 0.0)
         assigned = shares.get(emp.id, Decimal(0)) + Decimal(str(ticket_hours))
@@ -106,6 +106,8 @@ def employee_workload(period_start=None, period_end=None) -> list[dict]:
         results.append({
             "employee_id": str(emp.id),
             "name": emp.name,
+            "location": emp.location_id,
+            "location_name": emp.location.name if emp.location_id else None,
             "assigned_hours": round(float(assigned), 2),
             "capacity_hours": round(float(capacity), 2),
             "workload_pct": round(workload, 4),

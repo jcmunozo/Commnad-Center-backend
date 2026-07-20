@@ -130,6 +130,8 @@ class LeaveCalendarDaySerializer(serializers.Serializer):
 class WorkloadRowSerializer(serializers.Serializer):
     employee_id = serializers.CharField()
     name = serializers.CharField()
+    location = serializers.CharField(allow_null=True)
+    location_name = serializers.CharField(allow_null=True)
     assigned_hours = serializers.FloatField()
     capacity_hours = serializers.FloatField()
     workload_pct = serializers.FloatField()
