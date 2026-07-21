@@ -4,6 +4,10 @@ from .base import MIDDLEWARE, env
 
 DEBUG = False
 
+# Fail fast if the secret key was not provided explicitly: the base default
+# ("unsafe-dev-key") must never sign production JWTs/sessions.
+SECRET_KEY = env("DJANGO_SECRET_KEY")
+
 # Security hardening
 SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=True)
 SESSION_COOKIE_SECURE = True

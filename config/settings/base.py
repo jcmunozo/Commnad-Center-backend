@@ -23,6 +23,7 @@ DJANGO_APPS = [
 ]
 THIRD_PARTY_APPS = [
     "rest_framework",
+    "rest_framework_simplejwt.token_blacklist",
     "django_filters",
     "drf_spectacular",
     "corsheaders",
@@ -38,6 +39,7 @@ LOCAL_APPS = [
     "apps.resources",
     "apps.tickets",
     "apps.tracking",
+    "apps.notes",
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
@@ -77,8 +79,10 @@ TEMPLATES = [
 DATABASES = {"default": env.db("DATABASE_URL", default="postgres://pmo:pmo@localhost:5432/pmo")}
 
 AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
 LANGUAGE_CODE = "en-us"
@@ -104,6 +108,10 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "apps.core.pagination.DefaultPageNumberPagination",
     "PAGE_SIZE": 25,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    # Only anonymous traffic is rate-limited (i.e. the login/refresh endpoints):
+    # brute-force protection without capping normal authenticated UI usage.
+    "DEFAULT_THROTTLE_CLASSES": ("rest_framework.throttling.AnonRateThrottle",),
+    "DEFAULT_THROTTLE_RATES": {"anon": env("ANON_THROTTLE_RATE", default="30/min")},
 }
 
 SIMPLE_JWT = {
