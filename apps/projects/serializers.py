@@ -66,11 +66,13 @@ class TaskListSerializer(serializers.ModelSerializer):
     project_name = serializers.CharField(source="project.name", read_only=True)
     status = serializers.CharField(source="status_id", read_only=True)
     assignees = serializers.SerializerMethodField()
+    subtask_count = serializers.IntegerField(read_only=True, default=0)
 
     class Meta:
         model = Task
         fields = ("id", "legacy_code", "name", "project", "project_name", "task_type",
-                  "status", "priority", "planned_end", "progress_pct", "assignees")
+                  "status", "priority", "planned_end", "progress_pct", "assignees",
+                  "subtask_count")
 
     def get_assignees(self, obj):
         # Solo asignaciones activas: la M2M cruda incluye filas soft-borradas.

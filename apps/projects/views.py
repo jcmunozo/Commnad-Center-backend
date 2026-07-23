@@ -124,7 +124,7 @@ class TaskViewSet(BaseModelViewSet):
     serializer_class = TaskDetailSerializer
 
     def get_queryset(self):
-        from django.db.models import Prefetch
+        from django.db.models import Count, Prefetch, Q
 
         from apps.resources.models import TaskAssignment
 
@@ -135,6 +135,7 @@ class TaskViewSet(BaseModelViewSet):
                 queryset=TaskAssignment.active.select_related("employee"),
                 to_attr="active_assignments",
             ))
+            .annotate(subtask_count=Count("subtasks", filter=Q(subtasks__is_active=True)))
         )
 
     def get_serializer_class(self):
