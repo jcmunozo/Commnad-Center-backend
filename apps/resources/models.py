@@ -13,7 +13,7 @@ class Employee(TimeStampedModel):
     availability_pct = models.DecimalField(
         max_digits=5, decimal_places=4, default=1,
         validators=[MinValueValidator(0), MaxValueValidator(1)])
-    weekly_hours = models.DecimalField(max_digits=6, decimal_places=2, default=40)
+    weekly_hours = models.DecimalField(max_digits=6, decimal_places=2, default=42)
     level = models.ForeignKey("catalogs.EmployeeLevel", null=True, blank=True,
                               on_delete=models.PROTECT, related_name="+")
     status = models.ForeignKey("catalogs.EmployeeStatus", on_delete=models.PROTECT, related_name="+")

@@ -158,7 +158,7 @@ def _row(emp):
 
 
 def test_leave_reduces_capacity_and_flags_today():
-    emp = EmployeeFactory()  # weekly 40h, no schedule -> Mon..Fri workdays
+    emp = EmployeeFactory()  # weekly 42h, no schedule -> Mon..Fri workdays
     monday = TODAY - timedelta(days=TODAY.isoweekday() - 1)
     LeaveFactory(employee=emp, start_date=monday, end_date=monday + timedelta(days=6))
     row = _row(emp)
@@ -174,7 +174,7 @@ def test_single_leave_day_drops_one_fifth():
     LeaveFactory(employee=emp, start_date=monday, end_date=monday)
     row = _row(emp)
     assert row["leave_days"] == 1
-    assert row["capacity_hours"] == 32.0   # 40 - 40/5
+    assert row["capacity_hours"] == 33.6   # 42 - 42/5
 
 
 def test_weekend_leave_costs_nothing():
@@ -183,14 +183,14 @@ def test_weekend_leave_costs_nothing():
     LeaveFactory(employee=emp, start_date=saturday, end_date=saturday + timedelta(days=1))
     row = _row(emp)
     assert row["leave_days"] == 0
-    assert row["capacity_hours"] == 40.0
+    assert row["capacity_hours"] == 42.0
 
 
 def test_no_leave_keeps_capacity():
     emp = EmployeeFactory()
     row = _row(emp)
     assert row["leave_days"] == 0
-    assert row["capacity_hours"] == 40.0
+    assert row["capacity_hours"] == 42.0
     assert row["on_leave_today"] is False
 
 
