@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
@@ -124,3 +125,28 @@ class TaskAssignment(TimeStampedModel):
 
     def __str__(self):
         return f"{self.task_id} -> {self.employee_id}"
+
+
+class TeamWorkloadPeriod(models.Model):
+    """Per-user sprint range for the Team page's workload view. Persisted so
+    it survives a full page reload (the frontend previously only kept it in
+    memory); null dates mean "no range selected" (the workload endpoint then
+    falls back to the current ISO week)."""
+
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                                related_name="team_workload_period")
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "team_workload_period"
+        constraints = [
+            models.CheckConstraint(
+                check=(models.Q(start_date__isnull=True) | models.Q(end_date__isnull=True)
+                       | models.Q(end_date__gte=models.F("start_date"))),
+                name="team_workload_period_dates_ordered"),
+        ]
+
+    def __str__(self):
+        return f"{self.user_id}: {self.start_date}..{self.end_date}"

@@ -15,6 +15,9 @@ from .models import Employee, EmployeeShift, Holiday, Leave, TaskAssignment
 ACTIVE_TASK_EXCLUDE = ("DONE", "CANCELLED")
 DEFAULT_WORKDAYS = frozenset({1, 2, 3, 4, 5})  # Mon..Fri when no schedule exists
 CALENDAR_MAX_DAYS = 366
+FRIDAY = 5
+FULL_DAY_WEIGHT = 9   # Mon-Thu
+SHORT_DAY_WEIGHT = 6  # Fri — the 42h week splits 9-9-9-9-6, not evenly
 
 
 def employee_workload(period_start=None, period_end=None) -> list[dict]:
@@ -86,18 +89,29 @@ def employee_workload(period_start=None, period_end=None) -> list[dict]:
         tickets = ticket_data.get(str(emp.id), {})
         ticket_hours = tickets.get("ticket_hours", 0.0)
         assigned = shares.get(emp.id, Decimal(0)) + Decimal(str(ticket_hours))
-        capacity = emp.capacity_hours or Decimal(0)
         workdays = working_weekdays.get(emp.id, DEFAULT_WORKDAYS)
+        # capacity is weekly by definition (Employee.weekly_hours); scale it to
+        # however many working days the queried period actually spans so a
+        # multi-week period (e.g. a ~15-day/2-week sprint via start/end) isn't
+        # compared against a single week of capacity. Days are weighted, not
+        # counted evenly: the week splits 9-9-9-9-6 (Fri is a short day), so
+        # an "hour per weight-unit" rate is derived from the employee's own
+        # workdays and applied per day — a missed Friday costs less than a
+        # missed Monday.
+        total_weight = sum(_day_weight(wd) for wd in workdays) or 1
+        hour_rate = (emp.capacity_hours or Decimal(0)) / total_weight
+        period_weight = _weighted_workday_span(leave_start, leave_end, workdays)
+        capacity = hour_rate * period_weight
         emp_holidays = holiday_dates.get(emp.location_id, set())
         leave_days = sum(1 for d in leave_dates.get(emp.id, ())
                          if d.isoweekday() in workdays)
         holiday_days = sum(1 for d in emp_holidays if d.isoweekday() in workdays)
         # a leave overlapping a holiday is a single day off, not two
-        off_days = sum(1 for d in leave_dates.get(emp.id, set()) | emp_holidays
-                       if d.isoweekday() in workdays)
-        if capacity and workdays and off_days:
-            capacity = max(Decimal(0),
-                           capacity - capacity / len(workdays) * off_days)
+        off_dates = {d for d in leave_dates.get(emp.id, set()) | emp_holidays
+                     if d.isoweekday() in workdays}
+        off_weight = sum(_day_weight(d.isoweekday()) for d in off_dates)
+        if capacity and off_weight:
+            capacity = max(Decimal(0), capacity - hour_rate * off_weight)
         workload = float(assigned / capacity) if capacity else 0.0
         shift = shift_today.get(emp.id)
         local_today = _local_today(emp, now)
@@ -228,6 +242,25 @@ def _leave_dates(start: date, end: date) -> dict[str, set[date]]:
             bucket.add(d)
             d += timedelta(days=1)
     return dates
+
+
+def _day_weight(weekday: int) -> int:
+    """Hour-weight of a workday: Friday is short (the 42h week is 9-9-9-9-6)."""
+    return SHORT_DAY_WEIGHT if weekday == FRIDAY else FULL_DAY_WEIGHT
+
+
+def _weighted_workday_span(start: date, end: date, workdays: set[int]) -> int:
+    """Sum of day-weights in [start, end] for weekdays in ``workdays``."""
+    if not workdays:
+        return 0
+    total = 0
+    d = start
+    while d <= end:
+        wd = d.isoweekday()
+        if wd in workdays:
+            total += _day_weight(wd)
+        d += timedelta(days=1)
+    return total
 
 
 def _holiday_dates(start: date, end: date) -> dict[str, set[date]]:

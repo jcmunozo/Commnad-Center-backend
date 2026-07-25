@@ -81,7 +81,8 @@ def test_holiday_reduces_capacity_only_for_its_country():
     HolidayFactory(date=THIS_MONDAY, location=co)
 
     rows = {r["name"]: r for r in employee_workload()}
-    assert rows[co_emp.name]["capacity_hours"] == 32.0
+    # Monday is a full (weight-9) day out of the 9-9-9-9-6 week: 40 - 40/42*9
+    assert rows[co_emp.name]["capacity_hours"] == pytest.approx(31.43)
     assert rows[co_emp.name]["holiday_days"] == 1
     assert rows[ph_emp.name]["capacity_hours"] == 40.0
     assert rows[ph_emp.name]["holiday_days"] == 0
@@ -94,7 +95,8 @@ def test_leave_on_holiday_is_one_day_off_not_two():
     LeaveFactory(employee=emp, start_date=THIS_MONDAY, end_date=THIS_MONDAY)
 
     [row] = employee_workload()
-    assert row["capacity_hours"] == 32.0
+    # overlapping leave+holiday on a Monday still counts once: 40 - 40/42*9
+    assert row["capacity_hours"] == pytest.approx(31.43)
     assert row["leave_days"] == 1
     assert row["holiday_days"] == 1
 

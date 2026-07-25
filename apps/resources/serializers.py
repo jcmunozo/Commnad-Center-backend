@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Employee, EmployeeShift, Holiday, Leave, TaskAssignment
+from .models import Employee, EmployeeShift, Holiday, Leave, TaskAssignment, TeamWorkloadPeriod
 
 
 class EmployeeListSerializer(serializers.ModelSerializer):
@@ -125,6 +125,23 @@ class LeaveCalendarDaySerializer(serializers.Serializer):
     absent_pct = serializers.FloatField()
     alert = serializers.CharField()
     holidays = LeaveCalendarHolidaySerializer(many=True)
+
+
+class TeamWorkloadPeriodSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TeamWorkloadPeriod
+        fields = ("start_date", "end_date")
+
+    def validate(self, attrs):
+        # PATCH-style partial updates keep whatever the instance already has
+        # for a field that's absent from the payload.
+        start = attrs.get("start_date", getattr(self.instance, "start_date", None))
+        end = attrs.get("end_date", getattr(self.instance, "end_date", None))
+        if (start is None) != (end is None):
+            raise serializers.ValidationError("Provide both start_date and end_date, or neither.")
+        if start and end and end < start:
+            raise serializers.ValidationError("end_date must be on or after start_date.")
+        return attrs
 
 
 class WorkloadRowSerializer(serializers.Serializer):

@@ -19,7 +19,7 @@ from apps.core.views import BaseModelViewSet
 
 from . import services
 from .filters import EmployeeFilter, HolidayFilter, LeaveFilter, TaskAssignmentFilter
-from .models import Employee, EmployeeShift, Holiday, Leave, TaskAssignment
+from .models import Employee, EmployeeShift, Holiday, Leave, TaskAssignment, TeamWorkloadPeriod
 from .serializers import (
     EmployeeDetailSerializer,
     EmployeeListSerializer,
@@ -28,6 +28,7 @@ from .serializers import (
     LeaveCalendarDaySerializer,
     LeaveSerializer,
     TaskAssignmentSerializer,
+    TeamWorkloadPeriodSerializer,
     WorkloadRowSerializer,
 )
 
@@ -188,6 +189,27 @@ class WorkloadView(APIView):
         end = parse_datetime(request.query_params.get("end", "") or "")
         data = services.employee_workload(period_start=start, period_end=end)
         return Response(WorkloadRowSerializer(data, many=True).data)
+
+
+class TeamWorkloadPeriodView(APIView):
+    """The current user's saved sprint range for the Team page — persisted so
+    it survives a full page reload. ``null``/``null`` means no range (the
+    workload view then defaults to the current ISO week)."""
+
+    permission_classes = [role_required(ROLE_ADMIN, ROLE_PM)]
+
+    @extend_schema(responses=TeamWorkloadPeriodSerializer)
+    def get(self, request):
+        obj, _ = TeamWorkloadPeriod.objects.get_or_create(user=request.user)
+        return Response(TeamWorkloadPeriodSerializer(obj).data)
+
+    @extend_schema(request=TeamWorkloadPeriodSerializer, responses=TeamWorkloadPeriodSerializer)
+    def put(self, request):
+        obj, _ = TeamWorkloadPeriod.objects.get_or_create(user=request.user)
+        serializer = TeamWorkloadPeriodSerializer(obj, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
 
 
 def _shift_for_hours(start: int, end: int):

@@ -174,7 +174,7 @@ def test_single_leave_day_drops_one_fifth():
     LeaveFactory(employee=emp, start_date=monday, end_date=monday)
     row = _row(emp)
     assert row["leave_days"] == 1
-    assert row["capacity_hours"] == 33.6   # 42 - 42/5
+    assert row["capacity_hours"] == 33.0   # 42 - 9 (week is 9-9-9-9-6, Mon is a full day)
 
 
 def test_weekend_leave_costs_nothing():

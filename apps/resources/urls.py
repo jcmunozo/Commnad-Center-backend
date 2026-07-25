@@ -7,6 +7,7 @@ from .views import (
     LeaveCalendarView,
     LeaveViewSet,
     TaskAssignmentViewSet,
+    TeamWorkloadPeriodView,
     WorkloadView,
 )
 
@@ -18,6 +19,7 @@ router.register("holidays", HolidayViewSet, basename="holiday")
 
 urlpatterns = [
     path("resources/workload/", WorkloadView.as_view(), name="resource-workload"),
+    path("resources/workload-period/", TeamWorkloadPeriodView.as_view(), name="workload-period"),
     path("resources/leave-calendar/", LeaveCalendarView.as_view(), name="leave-calendar"),
     *router.urls,
 ]
