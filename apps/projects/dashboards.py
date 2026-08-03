@@ -39,6 +39,15 @@ class PortfolioDashboardView(APIView):
                  "progress_pct": float(p.progress_pct or 0), "health": p.health_id}
                 for p in projects.order_by("-progress_pct")
             ],
+            "tasks_effort": [
+                {"id": str(t.id), "legacy_code": t.legacy_code, "name": t.name,
+                 "project_name": t.project.name, "status": t.status_id,
+                 "estimated_hours": float(t.estimated_hours),
+                 "actual_hours": float(t.actual_hours) if t.actual_hours is not None else 0.0}
+                for t in tasks.exclude(estimated_hours__isnull=True)
+                               .select_related("project")
+                               .order_by("project__legacy_code", "legacy_code")
+            ],
         }
         return Response(data)
 

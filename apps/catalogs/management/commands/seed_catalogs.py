@@ -75,6 +75,7 @@ class Command(BaseCommand):
         self._simple(m.TaskType, [
             ("DEV", "Development"), ("QA", "QA"), ("SIT", "SIT"), ("UAT", "UAT"),
             ("DOC", "Documentation"), ("CODE_REVIEW", "Code Review"), ("BUG_FIX", "Bug Fix"),
+            ("REFACTOR", "Refactor"),
             ("DEVOPS", "DevOps"), ("DESIGN", "Design"), ("ANALYSIS", "Analysis"),
             ("DEPLOYMENT", "Deployment"), ("SUPPORT", "Support"),
             # Delivery-lifecycle types (workflow del PM)
