@@ -210,6 +210,67 @@ class TaskViewSet(BaseModelViewSet):
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+    @action(detail=False, methods=["get"])
+    def export(self, request):
+        """Download the (optionally filtered) task list as an .xlsx workbook.
+
+        One row per task/dev pair: task name, dev, estimated hours. Accepts
+        the same query params as ``list`` (``assignee``, ``project``,
+        ``status``, ``overdue``, etc.) via ``TaskFilter`` to narrow it down,
+        but with no params it's a global export of every active task.
+        """
+        from io import BytesIO
+
+        from django.http import HttpResponse
+        from openpyxl import Workbook
+        from openpyxl.styles import Font
+
+        tasks = self.filter_queryset(self.get_queryset())
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Tasks"
+        headers = ["Task", "Dev", "Estimated hours"]
+        ws.append(headers)
+        for cell in ws[1]:
+            cell.font = Font(bold=True)
+
+        for task in tasks:
+            # ``active_assignments`` comes from the Prefetch in get_queryset();
+            # falls back if export() is ever called against a bare queryset.
+            assignments = getattr(task, "active_assignments", None)
+            if assignments is None:
+                assignments = task.assignments.filter(is_active=True).select_related("employee")
+            hours = float(task.estimated_hours) if task.estimated_hours is not None else None
+            if assignments:
+                for a in assignments:
+                    ws.append([task.name, a.employee.name, hours])
+            else:
+                ws.append([task.name, "", hours])
+
+        widths = [50, 28, 16]
+        for col, width in zip(ws.iter_cols(min_row=1, max_row=1), widths):
+            ws.column_dimensions[col[0].column_letter].width = width
+
+        filename = "tasks_export.xlsx"
+        assignee_id = request.query_params.get("assignee")
+        if assignee_id:
+            from apps.resources.models import Employee
+
+            employee = Employee.objects.filter(id=assignee_id).first()
+            if employee:
+                safe = "".join(c if c.isalnum() or c in " _-" else "_" for c in employee.name).strip()
+                filename = f"tasks_{safe or employee.id}.xlsx"
+
+        buffer = BytesIO()
+        wb.save(buffer)
+        response = HttpResponse(
+            buffer.getvalue(),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return response
+
 
 class MilestoneViewSet(BaseModelViewSet):
     """CRUD for milestones; status/progress derived from linked tasks."""
