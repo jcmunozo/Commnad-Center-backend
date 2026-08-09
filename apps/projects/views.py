@@ -14,6 +14,7 @@ from .filters import (
     SubTaskFilter,
     TaskFilter,
 )
+from .selectors import milestone_progress
 from .models import (
     Milestone,
     MilestoneTask,
@@ -292,6 +293,66 @@ class MilestoneViewSet(BaseModelViewSet):
         link, created = MilestoneTask.objects.get_or_create(milestone=milestone, task=task)
         return Response({"created": created, "id": link.id},
                         status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+    @action(detail=False, methods=["get"])
+    def export(self, request):
+        """Download the (optionally filtered) milestone list as an .xlsx workbook.
+
+        One row per milestone: project, milestone, owner, target/actual date,
+        derived status, comments. Accepts the same query params as ``list`` (``project``,
+        ``owner_employee``, ``target_after``, ``target_before``, etc.) via
+        ``MilestoneFilter`` — e.g. the current sprint range — but with no
+        params it's a global export of every active milestone.
+        """
+        from io import BytesIO
+
+        from django.http import HttpResponse
+        from openpyxl import Workbook
+        from openpyxl.styles import Font
+
+        milestones = self.filter_queryset(self.get_queryset())
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Milestones"
+        headers = ["Project", "Milestone", "Owner", "Target date", "Actual date", "Status",
+                   "Comments"]
+        ws.append(headers)
+        for cell in ws[1]:
+            cell.font = Font(bold=True)
+
+        for milestone in milestones:
+            progress = milestone_progress(milestone)
+            ws.append([
+                milestone.project.name,
+                milestone.name,
+                milestone.owner_employee.name if milestone.owner_employee else "",
+                milestone.target_date.date().isoformat() if milestone.target_date else "",
+                milestone.actual_date.date().isoformat() if milestone.actual_date else "",
+                progress["derived_status"],
+                milestone.comments,
+            ])
+
+        widths = [28, 40, 24, 14, 14, 14, 50]
+        for col, width in zip(ws.iter_cols(min_row=1, max_row=1), widths):
+            ws.column_dimensions[col[0].column_letter].width = width
+
+        filename = "milestones_export.xlsx"
+        project_id = request.query_params.get("project")
+        if project_id:
+            project = Project.objects.filter(id=project_id).first()
+            if project:
+                safe = "".join(c if c.isalnum() or c in " _-" else "_" for c in project.name).strip()
+                filename = f"milestones_{safe or project.id}.xlsx"
+
+        buffer = BytesIO()
+        wb.save(buffer)
+        response = HttpResponse(
+            buffer.getvalue(),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return response
 
 
 class SubTaskViewSet(BaseModelViewSet):
