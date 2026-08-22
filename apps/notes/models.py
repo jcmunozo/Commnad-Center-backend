@@ -32,6 +32,8 @@ class Note(TimeStampedModel):
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.OPEN)
     project = models.ForeignKey("projects.Project", null=True, blank=True,
                                 on_delete=models.SET_NULL, related_name="notes")
+    work_item = models.ForeignKey("workitems.WorkItem", null=True, blank=True,
+                                  on_delete=models.SET_NULL, related_name="notes")
 
     class Meta:
         db_table = "note"

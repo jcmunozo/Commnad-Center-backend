@@ -10,4 +10,4 @@ class NoteFilter(filters.FilterSet):
 
     class Meta:
         model = Note
-        fields = ["status", "category", "priority", "pinned", "project"]
+        fields = ["status", "category", "priority", "pinned", "project", "work_item"]
