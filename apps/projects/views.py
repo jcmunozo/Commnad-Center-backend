@@ -46,7 +46,8 @@ class ProjectViewSet(BaseModelViewSet):
     legacy_prefix = "PRJ"
     filterset_class = ProjectFilter
     search_fields = ["name", "legacy_code", "trigger_name", "target_name"]
-    ordering_fields = ["name", "planned_end", "progress_pct", "created_at", "is_favorite"]
+    ordering_fields = ["name", "planned_end", "progress_pct", "created_at", "is_favorite",
+                       "status__is_closed"]
     serializer_class = ProjectDetailSerializer
 
     def get_queryset(self):

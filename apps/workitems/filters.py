@@ -15,6 +15,9 @@ class WorkItemFilter(filters.FilterSet):
 class WorkItemTaskFilter(filters.FilterSet):
     name = filters.CharFilter(lookup_expr="icontains")
     overdue = filters.BooleanFilter(method="filter_overdue")
+    # Find CI tasks by the delivered project they trace back to, without the
+    # caller needing to know which WorkItem(s) they live under.
+    project = filters.UUIDFilter(field_name="work_item__project")
 
     class Meta:
         model = WorkItemTask
