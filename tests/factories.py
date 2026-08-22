@@ -6,6 +6,7 @@ from apps.catalogs import models as cat
 from apps.projects.models import Project, Task
 from apps.resources.models import Employee, Holiday, Leave
 from apps.tickets.models import Ticket
+from apps.workitems.models import WorkItem, WorkItemTask
 
 
 # --- catalog helpers (idempotent get_or_create) ---
@@ -52,6 +53,27 @@ def seed_ticket_statuses():
     ticket_status("WIP")
     ticket_status("PAUSED")
     ticket_status("RESOLVED", is_closed=True)
+
+
+class WorkItemFactory(DjangoModelFactory):
+    class Meta:
+        model = WorkItem
+
+    title = factory.Sequence(lambda n: f"Work item {n}")
+    legacy_code = factory.Sequence(lambda n: f"WKI-{n:03d}")
+    status = factory.LazyFunction(project_status)
+    priority = factory.LazyFunction(sev)
+
+
+class WorkItemTaskFactory(DjangoModelFactory):
+    class Meta:
+        model = WorkItemTask
+
+    name = factory.Sequence(lambda n: f"Work item task {n}")
+    legacy_code = factory.Sequence(lambda n: f"WIT-{n:03d}")
+    work_item = factory.SubFactory(WorkItemFactory)
+    status = factory.LazyFunction(task_status)
+    priority = factory.LazyFunction(sev)
 
 
 class ProjectFactory(DjangoModelFactory):

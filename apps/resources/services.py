@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from apps.projects.models import Task
 from apps.tickets.services import employee_ticket_hours
+from apps.workitems.services import employee_workitem_hours
 
 from .models import Employee, EmployeeShift, Holiday, Leave, TaskAssignment
 
@@ -29,12 +30,15 @@ def employee_workload(period_start=None, period_end=None) -> list[dict]:
 
     Ticket WIP hours (clipped to the period; defaults to the current ISO week
     so lifetime hours aren't compared against weekly capacity) add to
-    ``assigned_hours`` and therefore to ``workload_pct``/``alert``.
+    ``assigned_hours`` and therefore to ``workload_pct``/``alert``. Continuous
+    Improvement WorkItemTask hours (manual, windowed the same way as tickets)
+    add to ``assigned_hours`` too.
     """
     now = timezone.now()
     ticket_start = period_start or _start_of_iso_week(now)
     ticket_end = period_end or now
     ticket_data = employee_ticket_hours(ticket_start, ticket_end)
+    workitem_data = employee_workitem_hours(period_start, period_end)
 
     task_qs = Task.active.exclude(status_id__in=ACTIVE_TASK_EXCLUDE)
     if period_start:
@@ -88,7 +92,10 @@ def employee_workload(period_start=None, period_end=None) -> list[dict]:
     for emp in Employee.active.select_related("timezone", "location").all():
         tickets = ticket_data.get(str(emp.id), {})
         ticket_hours = tickets.get("ticket_hours", 0.0)
-        assigned = shares.get(emp.id, Decimal(0)) + Decimal(str(ticket_hours))
+        workitems = workitem_data.get(str(emp.id), {})
+        workitem_hours = workitems.get("workitem_hours", 0.0)
+        assigned = (shares.get(emp.id, Decimal(0)) + Decimal(str(ticket_hours))
+                   + Decimal(str(workitem_hours)))
         workdays = working_weekdays.get(emp.id, DEFAULT_WORKDAYS)
         # capacity is weekly by definition (Employee.weekly_hours); scale it to
         # however many working days the queried period actually spans so a
@@ -131,6 +138,8 @@ def employee_workload(period_start=None, period_end=None) -> list[dict]:
             "open_tasks": open_tasks.get(emp.id, 0),
             "ticket_hours": round(ticket_hours, 2),
             "open_tickets": tickets.get("open_tickets", 0),
+            "workitem_hours": round(workitem_hours, 2),
+            "open_workitem_tasks": workitems.get("open_workitem_tasks", 0),
             "on_leave_today": is_off,
             "leave_days": leave_days,
             "holiday_today": is_holiday,
