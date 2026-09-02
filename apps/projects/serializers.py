@@ -1,3 +1,4 @@
+from django.utils import timezone
 from rest_framework import serializers
 
 from .models import (
@@ -17,12 +18,29 @@ class ProjectListSerializer(serializers.ModelSerializer):
     priority = serializers.CharField(source="priority_id", read_only=True)
     health = serializers.CharField(source="health_id", read_only=True)
     is_favorite = serializers.BooleanField(read_only=True, default=False)
+    current_phase = serializers.SerializerMethodField()
 
     class Meta:
         model = Project
         fields = ("id", "legacy_code", "name", "project_type",
                   "status", "priority", "health", "progress_pct", "planned_end",
-                  "trigger_name", "target_name", "is_favorite")
+                  "trigger_name", "target_name", "is_favorite", "current_phase")
+
+    def get_current_phase(self, obj):
+        """Delivery stage (Dev/SIT/UAT/Prod/Hypercare) whose planned window covers
+        today; first match in pipeline order, mirroring the detail page's
+        phaseRows() logic. None if no phase has dates, or none currently span
+        today. Relies on the queryset's ``prefetch_related("phases")``."""
+        now = timezone.now()
+        by_code = {p.phase: p for p in obj.phases.all()}
+        for code, _label in ProjectPhase.PHASES:
+            phase = by_code.get(code)
+            if not phase or (not phase.planned_start and not phase.planned_end):
+                continue
+            if ((phase.planned_start is None or phase.planned_start <= now)
+                    and (phase.planned_end is None or now <= phase.planned_end)):
+                return code
+        return None
 
 
 class ProjectPhaseSerializer(serializers.ModelSerializer):

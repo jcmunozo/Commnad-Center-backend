@@ -51,7 +51,8 @@ class ProjectViewSet(BaseModelViewSet):
     serializer_class = ProjectDetailSerializer
 
     def get_queryset(self):
-        qs = Project.active.select_related("status", "priority", "health").all()
+        qs = (Project.active.select_related("status", "priority", "health")
+              .prefetch_related("phases").all())
         user = getattr(self.request, "user", None)
         if user is None or not user.is_authenticated:
             return qs.annotate(is_favorite=Value(False, output_field=BooleanField()))
