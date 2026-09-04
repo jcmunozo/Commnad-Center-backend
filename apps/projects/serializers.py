@@ -27,7 +27,7 @@ class ProjectListSerializer(serializers.ModelSerializer):
                   "trigger_name", "target_name", "is_favorite", "current_phase")
 
     def get_current_phase(self, obj):
-        """Delivery stage (Dev/SIT/UAT/Prod/Hypercare) whose planned window covers
+        """Delivery stage (Dev/SIT/UAT/Hypercare/Prod) whose planned window covers
         today; first match in pipeline order, mirroring the detail page's
         phaseRows() logic. None if no phase has dates, or none currently span
         today. Relies on the queryset's ``prefetch_related("phases")``."""

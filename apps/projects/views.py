@@ -99,7 +99,7 @@ class ProjectViewSet(BaseModelViewSet):
                    responses=ProjectPhaseSerializer(many=True))
     @action(detail=True, methods=["get", "put"])
     def phases(self, request, pk=None):
-        """Get or replace the project's phase timeline (Dev/SIT/UAT/Prod/Hypercare)."""
+        """Get or replace the project's phase timeline (Dev/SIT/UAT/Hypercare/Prod)."""
         project = self.get_object()
         if request.method == "PUT":
             serializer = ProjectPhaseSerializer(data=request.data, many=True)

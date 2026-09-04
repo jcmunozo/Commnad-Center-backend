@@ -43,7 +43,14 @@ class Project(TimeStampedModel):
 
 
 class ProjectPhase(models.Model):
-    """Timeline entry for a project's delivery phase (Dev → Hypercare).
+    """Timeline entry for a project's delivery phase (Dev → Live).
+
+    Hypercare is the week right after go-live and comes before Live: Live
+    is the ongoing, indefinite production-support phase that follows it and
+    normally has no ``planned_end`` (it lasts until the project is retired).
+    ``current_phase`` resolution (see ``ProjectListSerializer``) and the
+    frontend timeline both rely on this list's order to pick the phase whose
+    window covers today when phases overlap.
 
     One row per (project, phase); the full set is replaced via the
     ``/projects/{id}/phases/`` action, mirroring the employee schedule PUT.
@@ -53,8 +60,8 @@ class ProjectPhase(models.Model):
         ("DEV", "Development"),
         ("SIT", "SIT"),
         ("UAT", "UAT"),
-        ("PROD", "Production"),
         ("HYPERCARE", "Hypercare"),
+        ("PROD", "Production"),
     ]
 
     id = models.BigAutoField(primary_key=True)
