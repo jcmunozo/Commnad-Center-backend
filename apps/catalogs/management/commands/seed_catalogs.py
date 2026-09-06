@@ -25,7 +25,7 @@ class Command(BaseCommand):
             ("COMPLETED", "Completed", True), ("CANCELLED", "Cancelled", True),
         ])
         self._closed(m.TaskStatus, [
-            ("BACKLOG", "Backlog", False), ("TODO", "To Do", False),
+            ("PLANNING", "Planning", False), ("BACKLOG", "Backlog", False), ("TODO", "To Do", False),
             ("IN_PROGRESS", "In Progress", False), ("IN_REVIEW", "In Review", False),
             ("BLOCKED", "Blocked", False), ("DONE", "Done", True), ("CANCELLED", "Cancelled", True),
         ])

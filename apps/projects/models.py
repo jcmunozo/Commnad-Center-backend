@@ -24,8 +24,6 @@ class Project(TimeStampedModel):
     planned_end = models.DateTimeField(null=True, blank=True)
     actual_end = models.DateTimeField(null=True, blank=True)
     progress_pct = models.DecimalField(default=0, **PCT)
-    planned_hours = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    consumed_hours = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     comments = models.TextField(blank=True)
 
     history = HistoricalRecords()

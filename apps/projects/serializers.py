@@ -57,7 +57,7 @@ class ProjectDetailSerializer(serializers.ModelSerializer):
         fields = ("id", "legacy_code", "name", "description", "target_name", "trigger_name",
                   "project_type",
                   "status", "priority", "health", "start_date", "planned_end", "actual_end",
-                  "progress_pct", "planned_hours", "consumed_hours", "comments", "phases",
+                  "progress_pct", "comments", "phases",
                   "custom_fields", "is_active", "created_at", "updated_at")
         read_only_fields = ("id", "is_active", "created_at", "updated_at")
 
@@ -70,7 +70,7 @@ class ProjectWriteSerializer(serializers.ModelSerializer):
         fields = ("id", "legacy_code", "name", "description", "target_name", "trigger_name",
                   "project_type", "status", "priority",
                   "health", "start_date", "planned_end", "actual_end", "progress_pct",
-                  "planned_hours", "consumed_hours", "comments", "custom_fields")
+                  "comments", "custom_fields")
 
     def validate(self, attrs):
         start, end = attrs.get("start_date"), attrs.get("planned_end")
