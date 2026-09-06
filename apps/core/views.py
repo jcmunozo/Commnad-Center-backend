@@ -30,8 +30,23 @@ class BaseModelViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         model = self.serializer_class.Meta.model
-        manager = getattr(model, "active", model.objects)
+        default = getattr(model, "active", model.objects)
+        manager = model.objects if self._include_archived() else default
         return manager.all()
+
+    def _include_archived(self) -> bool:
+        """Opt-in helper for a subclass's own ``get_queryset()``: archived
+        (soft-deleted) rows stay out of the default list, but a search should
+        still surface a match even if it's since been archived, and any
+        detail-level action (retrieve/update/destroy/a custom ``detail=True``
+        action) must still work for a row reached that way. Bulk list-type
+        custom actions (e.g. an ``export``) stay active-only by default,
+        matching their own "every active X" expectations."""
+        if self.detail:
+            return True
+        if self.action == "list":
+            return bool(self.request.query_params.get("search"))
+        return False
 
     def get_permissions(self):
         if self.action in ("create", "update", "partial_update", "destroy"):

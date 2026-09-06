@@ -25,4 +25,5 @@ class NoteViewSet(BaseModelViewSet):
         user = self.request.user
         if not user.is_authenticated:  # generación de schema (drf-spectacular)
             return Note.active.none()
-        return Note.active.filter(created_by=user).select_related("project", "work_item")
+        manager = Note.objects if self._include_archived() else Note.active
+        return manager.filter(created_by=user).select_related("project", "work_item")

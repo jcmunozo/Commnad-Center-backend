@@ -27,8 +27,9 @@ class TicketViewSet(BaseModelViewSet):
     serializer_class = TicketDetailSerializer
 
     def get_queryset(self):
+        manager = Ticket.objects if self._include_archived() else Ticket.active
         return (
-            Ticket.active.select_related("assignee", "status", "priority")
+            manager.select_related("assignee", "status", "priority")
             .prefetch_related("status_logs")
         )
 

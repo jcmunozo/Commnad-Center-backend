@@ -36,8 +36,9 @@ class WorkItemViewSet(BaseModelViewSet):
     serializer_class = WorkItemDetailSerializer
 
     def get_queryset(self):
+        manager = WorkItem.objects if self._include_archived() else WorkItem.active
         return (
-            WorkItem.active.select_related("project", "status", "priority")
+            manager.select_related("project", "status", "priority")
             .annotate(task_count=Count("tasks", filter=Q(tasks__is_active=True)))
         )
 
@@ -61,10 +62,8 @@ class WorkItemTaskViewSet(BaseModelViewSet):
     serializer_class = WorkItemTaskDetailSerializer
 
     def get_queryset(self):
-        return (
-            WorkItemTask.active
-            .select_related("work_item", "assignee", "status", "priority")
-        )
+        manager = WorkItemTask.objects if self._include_archived() else WorkItemTask.active
+        return manager.select_related("work_item", "assignee", "status", "priority")
 
     def get_serializer_class(self):
         return {
@@ -88,7 +87,8 @@ class WorkItemMilestoneViewSet(BaseModelViewSet):
     ordering_fields = ["target_date", "created_at"]
 
     def get_queryset(self):
-        return WorkItemMilestone.active.select_related("work_item", "owner_employee").all()
+        manager = WorkItemMilestone.objects if self._include_archived() else WorkItemMilestone.active
+        return manager.select_related("work_item", "owner_employee").all()
 
     @action(detail=True, methods=["post"])
     def tasks(self, request, pk=None):

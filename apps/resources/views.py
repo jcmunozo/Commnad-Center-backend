@@ -44,7 +44,8 @@ class EmployeeViewSet(BaseModelViewSet):
     serializer_class = EmployeeDetailSerializer
 
     def get_queryset(self):
-        return Employee.active.select_related("level", "status", "location", "timezone").all()
+        manager = Employee.objects if self._include_archived() else Employee.active
+        return manager.select_related("level", "status", "location", "timezone").all()
 
     def get_serializer_class(self):
         return EmployeeListSerializer if self.action == "list" else EmployeeDetailSerializer
@@ -82,7 +83,8 @@ class TaskAssignmentViewSet(BaseModelViewSet):
     ordering_fields = ["assigned_date", "created_at"]
 
     def get_queryset(self):
-        return TaskAssignment.active.select_related("task", "employee").all()
+        manager = TaskAssignment.objects if self._include_archived() else TaskAssignment.active
+        return manager.select_related("task", "employee").all()
 
 
 class LeaveViewSet(BaseModelViewSet):
@@ -97,7 +99,8 @@ class LeaveViewSet(BaseModelViewSet):
     ordering_fields = ["start_date", "end_date", "created_at"]
 
     def get_queryset(self):
-        return Leave.active.select_related("employee", "leave_type").all()
+        manager = Leave.objects if self._include_archived() else Leave.active
+        return manager.select_related("employee", "leave_type").all()
 
     def _check_ownership(self, employee):
         """Team Members may only touch leaves of their linked employee."""
@@ -137,7 +140,8 @@ class HolidayViewSet(BaseModelViewSet):
     ordering_fields = ["date", "created_at"]
 
     def get_queryset(self):
-        return Holiday.active.select_related("location").all()
+        manager = Holiday.objects if self._include_archived() else Holiday.active
+        return manager.select_related("location").all()
 
 
 class LeaveCalendarView(APIView):

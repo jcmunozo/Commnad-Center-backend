@@ -21,7 +21,8 @@ class TicketListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ticket
         fields = ("id", "legacy_code", "ticket_number", "name", "status", "priority",
-                  "assignee", "assignee_name", "invested_hours", "resolved_at", "created_at")
+                  "assignee", "assignee_name", "invested_hours", "resolved_at", "created_at",
+                  "is_active")
 
     def get_invested_hours(self, obj) -> float:
         return services.invested_hours(obj)
@@ -32,7 +33,7 @@ class TicketDetailSerializer(TicketListSerializer):
 
     class Meta(TicketListSerializer.Meta):
         fields = TicketListSerializer.Meta.fields + (
-            "description", "status_logs", "custom_fields", "is_active", "updated_at")
+            "description", "status_logs", "custom_fields", "updated_at")
         read_only_fields = ("id", "is_active", "created_at", "updated_at")
 
 

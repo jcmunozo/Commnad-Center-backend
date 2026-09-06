@@ -24,7 +24,7 @@ class ProjectListSerializer(serializers.ModelSerializer):
         model = Project
         fields = ("id", "legacy_code", "name", "project_type",
                   "status", "priority", "health", "progress_pct", "planned_end",
-                  "trigger_name", "target_name", "is_favorite", "current_phase")
+                  "trigger_name", "target_name", "is_favorite", "current_phase", "is_active")
 
     def get_current_phase(self, obj):
         """Delivery stage (Dev/SIT/UAT/Hypercare/Prod) whose planned window covers
@@ -90,7 +90,7 @@ class TaskListSerializer(serializers.ModelSerializer):
         model = Task
         fields = ("id", "legacy_code", "name", "project", "project_name", "task_type",
                   "status", "priority", "planned_end", "progress_pct", "assignees",
-                  "subtask_count")
+                  "subtask_count", "is_active")
 
     def get_assignees(self, obj):
         # Solo asignaciones activas: la M2M cruda incluye filas soft-borradas.

@@ -58,7 +58,14 @@ def test_delete_is_soft(pm_client):
         format="json").data["id"]
     res = pm_client.delete(f"/api/links/{link_id}/")
     assert res.status_code == 204
-    assert not pm_client.get(f"/api/links/{link_id}/").status_code == 200
+    # Soft-deleted, not gone: excluded from the default list, but a direct
+    # fetch by id still works (e.g. a search result reached before it was
+    # archived) and reports is_active=False.
+    codes = [l["id"] for l in pm_client.get("/api/links/", {"project": project.id}).data["results"]]
+    assert link_id not in codes
+    detail = pm_client.get(f"/api/links/{link_id}/")
+    assert detail.status_code == 200
+    assert detail.data["is_active"] is False
 
 
 # ----------------------------- Exactly-one-owner -----------------------------

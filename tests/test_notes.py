@@ -51,6 +51,33 @@ def test_delete_is_soft():
     assert note.is_active is False
 
 
+# ----------------------------- Archivadas -----------------------------
+def test_archived_note_excluded_from_default_list():
+    client, _ = _client()
+    note_id = client.post("/api/notes/", {"title": "Retired reminder"}, format="json").data["id"]
+    client.delete(f"/api/notes/{note_id}/")
+    titles = [n["title"] for n in client.get("/api/notes/").data["results"]]
+    assert "Retired reminder" not in titles
+
+
+def test_archived_note_surfaces_in_search():
+    client, _ = _client()
+    note_id = client.post("/api/notes/", {"title": "Retired reminder"}, format="json").data["id"]
+    client.delete(f"/api/notes/{note_id}/")
+    resp = client.get("/api/notes/", {"search": "Retired reminder"})
+    assert resp.data["count"] == 1
+    assert resp.data["results"][0]["is_active"] is False
+
+
+def test_archived_note_still_retrievable_by_id():
+    client, _ = _client()
+    note_id = client.post("/api/notes/", {"title": "Retired reminder"}, format="json").data["id"]
+    client.delete(f"/api/notes/{note_id}/")
+    resp = client.get(f"/api/notes/{note_id}/")
+    assert resp.status_code == 200
+    assert resp.data["is_active"] is False
+
+
 # ----------------------------- Aislamiento por usuario -----------------------------
 def test_users_only_see_their_own_notes():
     client_a, _ = _client("alice")

@@ -14,6 +14,10 @@ from apps.workitems.services import employee_workitem_hours
 from .models import Employee, EmployeeShift, Holiday, Leave, TaskAssignment
 
 ACTIVE_TASK_EXCLUDE = ("DONE", "CANCELLED")
+# Bug fixes are reactive, unplanned work — they still show up as an open task
+# so the dev's plate is visible, but their hours don't inflate the estimate
+# the dev was actually staffed against.
+UNESTIMATED_TASK_TYPES = ("BUG_FIX",)
 DEFAULT_WORKDAYS = frozenset({1, 2, 3, 4, 5})  # Mon..Fri when no schedule exists
 CALENDAR_MAX_DAYS = 366
 FRIDAY = 5
@@ -26,7 +30,9 @@ def employee_workload(period_start=None, period_end=None) -> list[dict]:
 
     Each active task's ``estimated_hours`` is split equally among its active
     assignees; every employee accumulates their share over active tasks.
-    Optional ``period_*`` filters by the task's planned window.
+    Optional ``period_*`` filters by the task's planned window. Bug Fix tasks
+    (``UNESTIMATED_TASK_TYPES``) still count as an open task but contribute
+    zero hours — they're unplanned/reactive work, not part of the estimate.
 
     Ticket WIP hours (clipped to the period; defaults to the current ISO week
     so lifetime hours aren't compared against weekly capacity) add to
@@ -61,7 +67,7 @@ def employee_workload(period_start=None, period_end=None) -> list[dict]:
     )
     for a in assignments:
         n = counts.get(a.task_id, 1) or 1
-        est = a.task.estimated_hours or Decimal(0)
+        est = Decimal(0) if a.task.task_type_id in UNESTIMATED_TASK_TYPES else (a.task.estimated_hours or Decimal(0))
         shares[a.employee_id] = shares.get(a.employee_id, Decimal(0)) + est / n
         open_tasks[a.employee_id] = open_tasks.get(a.employee_id, 0) + 1
 

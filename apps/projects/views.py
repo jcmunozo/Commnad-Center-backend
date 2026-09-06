@@ -51,7 +51,8 @@ class ProjectViewSet(BaseModelViewSet):
     serializer_class = ProjectDetailSerializer
 
     def get_queryset(self):
-        qs = (Project.active.select_related("status", "priority", "health")
+        manager = Project.objects if self._include_archived() else Project.active
+        qs = (manager.select_related("status", "priority", "health")
               .prefetch_related("phases").all())
         user = getattr(self.request, "user", None)
         if user is None or not user.is_authenticated:
@@ -131,8 +132,9 @@ class TaskViewSet(BaseModelViewSet):
 
         from apps.resources.models import TaskAssignment
 
+        manager = Task.objects if self._include_archived() else Task.active
         return (
-            Task.active.select_related("project", "status", "priority", "task_type")
+            manager.select_related("project", "status", "priority", "task_type")
             .prefetch_related(Prefetch(
                 "assignments",
                 queryset=TaskAssignment.active.select_related("employee"),
@@ -285,7 +287,8 @@ class MilestoneViewSet(BaseModelViewSet):
     ordering_fields = ["target_date", "created_at"]
 
     def get_queryset(self):
-        return Milestone.active.select_related("project", "owner_employee").all()
+        manager = Milestone.objects if self._include_archived() else Milestone.active
+        return manager.select_related("project", "owner_employee").all()
 
     @action(detail=True, methods=["post"])
     def tasks(self, request, pk=None):
@@ -368,4 +371,5 @@ class SubTaskViewSet(BaseModelViewSet):
     ordering_fields = ["due_date", "created_at"]
 
     def get_queryset(self):
-        return SubTask.active.select_related("task", "assignee", "status", "priority").all()
+        manager = SubTask.objects if self._include_archived() else SubTask.active
+        return manager.select_related("task", "assignee", "status", "priority").all()

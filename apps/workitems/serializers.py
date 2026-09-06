@@ -15,7 +15,7 @@ class WorkItemListSerializer(serializers.ModelSerializer):
     class Meta:
         model = WorkItem
         fields = ("id", "legacy_code", "title", "project", "project_name", "project_code",
-                  "status", "priority", "task_count", "created_at")
+                  "status", "priority", "task_count", "created_at", "is_active")
 
 
 class WorkItemDetailSerializer(serializers.ModelSerializer):
@@ -46,7 +46,7 @@ class WorkItemTaskListSerializer(serializers.ModelSerializer):
         model = WorkItemTask
         fields = ("id", "legacy_code", "name", "work_item", "work_item_title",
                   "assignee", "assignee_name", "status", "priority", "planned_end",
-                  "estimated_hours", "progress_pct")
+                  "estimated_hours", "progress_pct", "is_active")
 
 
 class WorkItemTaskDetailSerializer(serializers.ModelSerializer):

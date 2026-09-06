@@ -34,3 +34,27 @@ def test_project_dashboard_action(pm_client):
     resp = pm_client.get(f"/api/projects/{project.id}/dashboard/")
     assert resp.status_code == 200
     assert resp.data["open_tasks"] == 0
+
+
+def test_archived_project_excluded_from_default_list(pm_client):
+    project = ProjectFactory(name="Retired Migration")
+    project.soft_delete()
+    codes = [p["legacy_code"] for p in pm_client.get("/api/projects/").data["results"]]
+    assert project.legacy_code not in codes
+
+
+def test_archived_project_surfaces_in_search(pm_client):
+    project = ProjectFactory(name="Retired Migration")
+    project.soft_delete()
+    resp = pm_client.get("/api/projects/", {"search": "Retired Migration"})
+    codes = [p["legacy_code"] for p in resp.data["results"]]
+    assert project.legacy_code in codes
+    assert resp.data["results"][0]["is_active"] is False
+
+
+def test_archived_project_still_retrievable_by_id(pm_client):
+    project = ProjectFactory()
+    project.soft_delete()
+    resp = pm_client.get(f"/api/projects/{project.id}/")
+    assert resp.status_code == 200
+    assert resp.data["is_active"] is False

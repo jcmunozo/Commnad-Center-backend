@@ -27,7 +27,8 @@ class LinkViewSet(BaseModelViewSet):
         return [LinkPermission()]
 
     def get_queryset(self):
-        qs = Link.active.select_related("project", "note", "ticket", "work_item")
+        manager = Link.objects if self._include_archived() else Link.active
+        qs = manager.select_related("project", "note", "ticket", "work_item")
         user = self.request.user
         if not (user.is_authenticated and
                 (user.is_superuser or user.groups.filter(name=ROLE_ADMIN).exists())):
