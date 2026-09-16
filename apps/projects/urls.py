@@ -5,6 +5,7 @@ from .dashboards import AlertsView, PortfolioDashboardView
 from .views import (
     MilestoneViewSet,
     ProjectViewSet,
+    SprintViewSet,
     SubTaskViewSet,
     TaskViewSet,
 )
@@ -14,6 +15,7 @@ router.register("projects", ProjectViewSet, basename="project")
 router.register("tasks", TaskViewSet, basename="task")
 router.register("subtasks", SubTaskViewSet, basename="subtask")
 router.register("milestones", MilestoneViewSet, basename="milestone")
+router.register("sprints", SprintViewSet, basename="sprint")
 
 urlpatterns = [
     path("dashboard/portfolio/", PortfolioDashboardView.as_view(), name="portfolio-dashboard"),

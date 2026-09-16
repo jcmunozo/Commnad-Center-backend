@@ -47,6 +47,8 @@ class WorkItemTask(TimeStampedModel):
                                  on_delete=models.SET_NULL, related_name="work_item_tasks")
     status = models.ForeignKey("catalogs.TaskStatus", on_delete=models.PROTECT, related_name="+")
     priority = models.ForeignKey("catalogs.SeverityLevel", on_delete=models.PROTECT, related_name="+")
+    sprint = models.ForeignKey("projects.Sprint", null=True, blank=True,
+                               on_delete=models.SET_NULL, related_name="work_item_tasks")
     planned_start = models.DateTimeField(null=True, blank=True)
     planned_end = models.DateTimeField(null=True, blank=True)
     estimated_hours = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
@@ -63,6 +65,7 @@ class WorkItemTask(TimeStampedModel):
             models.Index(fields=["work_item"]),
             models.Index(fields=["status"]),
             models.Index(fields=["assignee"]),
+            models.Index(fields=["sprint"]),
         ]
 
     def __str__(self):

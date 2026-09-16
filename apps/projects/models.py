@@ -99,6 +99,40 @@ class ProjectFavorite(models.Model):
         return f"{self.user_id} ★ {self.project_id}"
 
 
+class Sprint(TimeStampedModel):
+    """Global iteration that Tasks/WorkItemTasks are grouped under. Only one
+    row may be ACTIVE at a time (enforced by ``sprint_single_active``, not
+    just app-level trust). ``start_next`` (SprintViewSet) is the only way to
+    transition: it closes this row and carries over every non-closed task
+    into the new one, so closed tasks are left pointing at a CLOSED sprint
+    and naturally drop out of "current sprint" views."""
+
+    STATUS_ACTIVE = "ACTIVE"
+    STATUS_CLOSED = "CLOSED"
+    STATUS_CHOICES = [(STATUS_ACTIVE, "Active"), (STATUS_CLOSED, "Closed")]
+
+    name = models.CharField(max_length=100)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
+    closed_at = models.DateTimeField(null=True, blank=True)
+
+    history = HistoricalRecords()
+
+    class Meta:
+        db_table = "sprint"
+        ordering = ["-start_date"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["status"], condition=models.Q(status="ACTIVE"),
+                name="sprint_single_active",
+            ),
+        ]
+
+    def __str__(self):
+        return self.name
+
+
 class Task(TimeStampedModel):
     legacy_code = models.CharField(max_length=20, unique=True, null=True, blank=True)
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="tasks")
@@ -106,6 +140,8 @@ class Task(TimeStampedModel):
     name = models.CharField(max_length=300)
     status = models.ForeignKey("catalogs.TaskStatus", on_delete=models.PROTECT, related_name="+")
     priority = models.ForeignKey("catalogs.SeverityLevel", on_delete=models.PROTECT, related_name="+")
+    sprint = models.ForeignKey(Sprint, null=True, blank=True,
+                               on_delete=models.SET_NULL, related_name="tasks")
     planned_start = models.DateTimeField(null=True, blank=True)
     planned_end = models.DateTimeField(null=True, blank=True)
     estimated_hours = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
@@ -126,6 +162,7 @@ class Task(TimeStampedModel):
         indexes = [
             models.Index(fields=["project"]),
             models.Index(fields=["status"]),
+            models.Index(fields=["sprint"]),
             models.Index(fields=["planned_start", "planned_end"]),
         ]
 

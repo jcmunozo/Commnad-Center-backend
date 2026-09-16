@@ -1,6 +1,7 @@
 from django_filters import rest_framework as filters
 
 from .models import Milestone, Project, SubTask, Task
+from .selectors import current_sprint_q
 
 
 class ProjectFilter(filters.FilterSet):
@@ -21,10 +22,11 @@ class TaskFilter(filters.FilterSet):
     planned_end_before = filters.DateTimeFilter(field_name="planned_end", lookup_expr="lte")
     planned_end_after = filters.DateTimeFilter(field_name="planned_end", lookup_expr="gte")
     overdue = filters.BooleanFilter(method="filter_overdue")
+    current_sprint = filters.BooleanFilter(method="filter_current_sprint")
 
     class Meta:
         model = Task
-        fields = ["project", "status", "priority", "task_type", "is_active"]
+        fields = ["project", "status", "priority", "task_type", "sprint", "is_active"]
 
     def filter_overdue(self, queryset, name, value):
         from django.utils import timezone
@@ -32,6 +34,9 @@ class TaskFilter(filters.FilterSet):
             return queryset.filter(planned_end__lt=timezone.now()).exclude(
                 status_id__in=("DONE", "CANCELLED"))
         return queryset
+
+    def filter_current_sprint(self, queryset, name, value):
+        return queryset.filter(current_sprint_q()) if value else queryset
 
 
 class MilestoneFilter(filters.FilterSet):

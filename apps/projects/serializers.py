@@ -5,6 +5,7 @@ from .models import (
     Milestone,
     Project,
     ProjectPhase,
+    Sprint,
     SubTask,
     Task,
     TaskDependency,
@@ -79,6 +80,26 @@ class ProjectWriteSerializer(serializers.ModelSerializer):
         return attrs
 
 
+# ----------------------------- Sprint -----------------------------
+class SprintSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Sprint
+        fields = ("id", "name", "start_date", "end_date", "status", "closed_at")
+        read_only_fields = ("id", "status", "closed_at")
+
+
+class SprintStartSerializer(serializers.Serializer):
+    """Input for ``SprintViewSet.start_next``: the sprint being created next."""
+    name = serializers.CharField(max_length=100)
+    start_date = serializers.DateField()
+    end_date = serializers.DateField()
+
+    def validate(self, attrs):
+        if attrs["end_date"] < attrs["start_date"]:
+            raise serializers.ValidationError("end_date cannot be before start_date.")
+        return attrs
+
+
 # ----------------------------- Task -----------------------------
 class TaskListSerializer(serializers.ModelSerializer):
     project_name = serializers.CharField(source="project.name", read_only=True)
@@ -89,7 +110,7 @@ class TaskListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Task
         fields = ("id", "legacy_code", "name", "project", "project_name", "task_type",
-                  "status", "priority", "planned_end", "progress_pct", "assignees",
+                  "status", "priority", "sprint", "planned_end", "progress_pct", "assignees",
                   "subtask_count", "is_active")
 
     def get_assignees(self, obj):
@@ -109,7 +130,7 @@ class TaskDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Task
         fields = ("id", "legacy_code", "name", "project", "task_type",
-                  "status", "priority", "planned_start", "planned_end", "estimated_hours",
+                  "status", "priority", "sprint", "planned_start", "planned_end", "estimated_hours",
                   "actual_hours", "progress_pct", "notes", "assignee_ids", "blocked_by_ids",
                   "custom_fields", "is_active", "created_at", "updated_at")
         read_only_fields = ("id", "is_active", "created_at", "updated_at")
@@ -121,8 +142,8 @@ class TaskWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Task
         fields = ("id", "legacy_code", "name", "project", "task_type", "status",
-                  "priority", "planned_start", "planned_end", "estimated_hours", "actual_hours",
-                  "progress_pct", "notes", "custom_fields")
+                  "priority", "sprint", "planned_start", "planned_end", "estimated_hours",
+                  "actual_hours", "progress_pct", "notes", "custom_fields")
 
 
 class TaskDependencySerializer(serializers.ModelSerializer):

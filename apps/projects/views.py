@@ -1,10 +1,14 @@
+from django.db import transaction
 from django.db.models import BooleanField, Exists, OuterRef, Value
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
+from apps.core.permissions import ROLE_ADMIN, ROLE_PM, role_required
 from apps.core.views import BaseModelViewSet
 
 from . import services
@@ -14,13 +18,14 @@ from .filters import (
     SubTaskFilter,
     TaskFilter,
 )
-from .selectors import milestone_progress
+from .selectors import CLOSED_TASK_STATUSES, milestone_progress
 from .models import (
     Milestone,
     MilestoneTask,
     Project,
     ProjectFavorite,
     ProjectPhase,
+    Sprint,
     SubTask,
     Task,
 )
@@ -32,6 +37,8 @@ from .serializers import (
     ProjectListSerializer,
     ProjectPhaseSerializer,
     ProjectWriteSerializer,
+    SprintSerializer,
+    SprintStartSerializer,
     SubTaskSerializer,
     TaskDependencySerializer,
     TaskDetailSerializer,
@@ -115,6 +122,78 @@ class ProjectViewSet(BaseModelViewSet):
             ])
         qs = sorted(project.phases.all(), key=lambda p: self.PHASE_ORDER.index(p.phase))
         return Response(ProjectPhaseSerializer(qs, many=True).data)
+
+
+class SprintViewSet(BaseModelViewSet):
+    """CRUD for the global sprint sequence, plus the ``start_next`` action
+    that closes the active sprint and carries over its non-closed tasks."""
+
+    write_roles = (ROLE_ADMIN, ROLE_PM)
+    serializer_class = SprintSerializer
+    ordering_fields = ["start_date", "created_at"]
+
+    def get_queryset(self):
+        manager = Sprint.objects if self._include_archived() else Sprint.active
+        return manager.all()
+
+    def perform_create(self, serializer):
+        if Sprint.objects.filter(status=Sprint.STATUS_ACTIVE).exists():
+            raise ValidationError(
+                {"detail": "There is already an active sprint; use start_next instead."})
+        super().perform_create(serializer)
+
+    @action(detail=False, methods=["get"])
+    def active(self, request):
+        """The current ACTIVE sprint, or null if none has been started yet."""
+        sprint = Sprint.active.filter(status=Sprint.STATUS_ACTIVE).first()
+        if sprint is None:
+            return Response(None)
+        return Response(SprintSerializer(sprint).data)
+
+    @extend_schema(request=SprintStartSerializer, responses=SprintSerializer)
+    @action(detail=True, methods=["post"], permission_classes=[role_required(ROLE_ADMIN, ROLE_PM)])
+    def start_next(self, request, pk=None):
+        """Close this sprint and start the next one. A task's ``sprint`` FK is
+        never reassigned — it always points at the sprint it was originally
+        created/assigned in. "Carrying over" is purely a read-time effect:
+        ``current_sprint=true`` (TaskFilter/WorkItemTaskFilter) matches the
+        active sprint's own tasks plus any still-open task from an older,
+        closed sprint; a task only drops out once it's DONE/CANCELLED,
+        wherever its original sprint pointer lands."""
+        from apps.workitems.models import WorkItemTask
+        from apps.workitems.services import ACTIVE_EXCLUDE
+
+        old_sprint = self.get_object()
+        if old_sprint.status != Sprint.STATUS_ACTIVE:
+            return Response({"detail": "Only the active sprint can be advanced."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = SprintStartSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        with transaction.atomic():
+            old_sprint.status = Sprint.STATUS_CLOSED
+            old_sprint.closed_at = timezone.now()
+            old_sprint.save(update_fields=["status", "closed_at", "updated_at"])
+
+            new_sprint = Sprint.objects.create(
+                **serializer.validated_data,
+                created_by=request.user, updated_by=request.user)
+
+            carried_count = (
+                Task.objects.filter(sprint=old_sprint).exclude(status_id__in=CLOSED_TASK_STATUSES).count()
+                + WorkItemTask.objects.filter(sprint=old_sprint).exclude(status_id__in=ACTIVE_EXCLUDE).count()
+            )
+            closed_count = (
+                Task.objects.filter(sprint=old_sprint, status_id__in=CLOSED_TASK_STATUSES).count()
+                + WorkItemTask.objects.filter(sprint=old_sprint, status_id__in=ACTIVE_EXCLUDE).count()
+            )
+
+        return Response({
+            "sprint": SprintSerializer(new_sprint).data,
+            "carried_over_count": carried_count,
+            "closed_count": closed_count,
+        }, status=status.HTTP_201_CREATED)
 
 
 class TaskViewSet(BaseModelViewSet):

@@ -45,7 +45,7 @@ class WorkItemTaskListSerializer(serializers.ModelSerializer):
     class Meta:
         model = WorkItemTask
         fields = ("id", "legacy_code", "name", "work_item", "work_item_title",
-                  "assignee", "assignee_name", "status", "priority", "planned_end",
+                  "assignee", "assignee_name", "status", "priority", "sprint", "planned_end",
                   "estimated_hours", "progress_pct", "is_active")
 
 
@@ -55,7 +55,7 @@ class WorkItemTaskDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = WorkItemTask
         fields = ("id", "legacy_code", "work_item", "name", "assignee", "assignee_name",
-                  "status", "priority", "planned_start", "planned_end", "estimated_hours",
+                  "status", "priority", "sprint", "planned_start", "planned_end", "estimated_hours",
                   "actual_hours", "progress_pct", "notes", "custom_fields", "is_active",
                   "created_at", "updated_at")
         read_only_fields = ("id", "is_active", "created_at", "updated_at")
@@ -67,7 +67,7 @@ class WorkItemTaskWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = WorkItemTask
         fields = ("id", "legacy_code", "work_item", "name", "assignee", "status", "priority",
-                  "planned_start", "planned_end", "estimated_hours", "actual_hours",
+                  "sprint", "planned_start", "planned_end", "estimated_hours", "actual_hours",
                   "progress_pct", "notes", "custom_fields")
 
 
