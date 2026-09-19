@@ -1,7 +1,7 @@
 from django.urls import path
 from rest_framework.routers import DefaultRouter
 
-from .dashboards import AlertsView, PortfolioDashboardView
+from .dashboards import AlertsView, BurndownView, PortfolioDashboardView, VelocityView
 from .views import (
     MilestoneViewSet,
     ProjectViewSet,
@@ -20,5 +20,7 @@ router.register("sprints", SprintViewSet, basename="sprint")
 urlpatterns = [
     path("dashboard/portfolio/", PortfolioDashboardView.as_view(), name="portfolio-dashboard"),
     path("dashboard/alerts/", AlertsView.as_view(), name="portfolio-alerts"),
+    path("dashboard/burndown/", BurndownView.as_view(), name="portfolio-burndown"),
+    path("dashboard/velocity/", VelocityView.as_view(), name="portfolio-velocity"),
     *router.urls,
 ]

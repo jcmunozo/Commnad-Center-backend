@@ -146,6 +146,12 @@ class Task(TimeStampedModel):
     planned_end = models.DateTimeField(null=True, blank=True)
     estimated_hours = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
     actual_hours = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    completed_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Stamped the first time status transitions to DONE (see TaskViewSet._stamp_delivery). "
+                   "Backfilled best-effort from TaskAssignment.delivery_date for pre-existing DONE tasks; "
+                   "NULL means 'unknown', not 'not done' — used by the sprint burndown chart.",
+    )
     progress_pct = models.DecimalField(default=0, **PCT)
     notes = models.TextField(blank=True)
     # "blocked by" self relation (Fase 1 #8)

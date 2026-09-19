@@ -3,7 +3,7 @@ from django.utils import timezone
 from factory.django import DjangoModelFactory
 
 from apps.catalogs import models as cat
-from apps.projects.models import Project, Task
+from apps.projects.models import Project, Sprint, Task
 from apps.resources.models import Employee, Holiday, Leave
 from apps.tickets.models import Ticket
 from apps.workitems.models import WorkItem, WorkItemTask
@@ -97,6 +97,15 @@ class TaskFactory(DjangoModelFactory):
     task_type = factory.LazyFunction(task_type)
     status = factory.LazyFunction(task_status)
     priority = factory.LazyFunction(sev)
+
+
+class SprintFactory(DjangoModelFactory):
+    class Meta:
+        model = Sprint
+
+    name = factory.Sequence(lambda n: f"Sprint {n}")
+    start_date = factory.LazyFunction(timezone.localdate)
+    end_date = factory.LazyFunction(timezone.localdate)
 
 
 class EmployeeFactory(DjangoModelFactory):

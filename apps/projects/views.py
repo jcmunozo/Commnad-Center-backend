@@ -231,12 +231,17 @@ class TaskViewSet(BaseModelViewSet):
         }.get(self.action, TaskDetailSerializer)
 
     def _stamp_delivery(self, task):
-        """A DONE task stamps the delivery date on its active assignments."""
+        """A DONE task stamps the delivery date on its active assignments,
+        and its own completed_at (used by the sprint burndown chart) the
+        first time it transitions to DONE."""
         from django.utils import timezone
 
         if task.status_id == "DONE":
+            now = timezone.now()
             task.assignments.filter(is_active=True, delivery_date__isnull=True).update(
-                delivery_date=timezone.now())
+                delivery_date=now)
+            if task.completed_at is None:
+                Task.objects.filter(pk=task.pk).update(completed_at=now)
 
     def perform_create(self, serializer):
         super().perform_create(serializer)

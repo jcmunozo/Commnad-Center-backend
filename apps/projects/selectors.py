@@ -29,6 +29,23 @@ def current_sprint_q(closed_statuses=CLOSED_TASK_STATUSES) -> Q:
     return Q(sprint_id=active.id) | (Q(sprint__isnull=False) & ~Q(status_id__in=closed_statuses))
 
 
+def sprint_scope_q(sprint, closed_statuses=CLOSED_TASK_STATUSES) -> Q:
+    """Q for 'belongs to this specific sprint' (Dashboard sprint filter).
+
+    Unlike ``current_sprint_q()`` (always resolved against *the* active
+    sprint), this takes an explicit ``Sprint`` instance, which may be closed:
+    - ACTIVE sprint: same semantics as ``current_sprint_q()`` — its own rows
+      plus still-open rows carried over from an older closed sprint — so the
+      Dashboard agrees with the Task page's own "current sprint" filter.
+    - CLOSED sprint: a strict ``sprint_id`` match, since carry-over semantics
+      only make sense relative to *the* active sprint. Whatever is literally
+      still pointing at a closed sprint's FK is what "that sprint" means.
+    """
+    if sprint.status == sprint.STATUS_ACTIVE:
+        return current_sprint_q(closed_statuses)
+    return Q(sprint_id=sprint.id)
+
+
 def milestone_progress(milestone: Milestone) -> dict:
     """Derive status/progress of a milestone from its tasks (Fase 1 #2)."""
     agg = milestone.tasks(manager="active").aggregate(
