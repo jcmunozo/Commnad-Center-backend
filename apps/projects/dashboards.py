@@ -203,7 +203,7 @@ class VelocityView(APIView):
         limit = max(1, min(limit, 24))
 
         closed_sprints = list(
-            Sprint.objects.filter(status=Sprint.STATUS_CLOSED).order_by("-start_date")[:limit])
+            Sprint.active.filter(status=Sprint.STATUS_CLOSED).order_by("-start_date")[:limit])
         closed_sprints.reverse()
 
         sprints_payload = []

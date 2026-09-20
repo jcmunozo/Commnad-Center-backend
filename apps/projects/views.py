@@ -5,7 +5,7 @@ from django.utils import timezone
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.decorators import action
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
 
 from apps.core.permissions import ROLE_ADMIN, ROLE_PM, role_required
@@ -37,6 +37,7 @@ from .serializers import (
     ProjectListSerializer,
     ProjectPhaseSerializer,
     ProjectWriteSerializer,
+    SprintDeleteSerializer,
     SprintSerializer,
     SprintStartSerializer,
     SubTaskSerializer,
@@ -141,6 +142,60 @@ class SprintViewSet(BaseModelViewSet):
             raise ValidationError(
                 {"detail": "There is already an active sprint; use start_next instead."})
         super().perform_create(serializer)
+
+    @extend_schema(request=SprintDeleteSerializer, responses={200: dict})
+    def destroy(self, request, *args, **kwargs):
+        """Delete a sprint created by mistake (soft-delete). A ``reason`` is
+        required and kept in the sprint's history. Tasks and CI tasks pointing at
+        it are left without a sprint. Deleting the ACTIVE sprint also marks it
+        CLOSED: the ``sprint_single_active`` constraint ignores ``is_active``, so
+        an archived ACTIVE row would block creating the next sprint while
+        ``/sprints/active/`` reported none."""
+        from apps.workitems.models import WorkItemTask
+
+        sprint = self.get_object()
+        if not sprint.is_active:
+            raise NotFound("This sprint was already deleted.")
+        serializer = SprintDeleteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        reason = serializer.validated_data["reason"]
+
+        with transaction.atomic():
+            detached_tasks = Task.objects.filter(sprint=sprint).update(sprint=None)
+            detached_ci_tasks = WorkItemTask.objects.filter(sprint=sprint).update(sprint=None)
+            was_active = sprint.status == Sprint.STATUS_ACTIVE
+            if was_active:
+                sprint.status = Sprint.STATUS_CLOSED
+                sprint.closed_at = timezone.now()
+            sprint.is_active = False
+            sprint.updated_by = request.user
+            sprint._change_reason = f"Deleted: {reason}"
+            sprint.save(update_fields=["status", "closed_at", "is_active", "updated_by",
+                                       "updated_at"])
+        return Response({
+            "id": str(sprint.id),
+            "was_active": was_active,
+            "detached_tasks": detached_tasks,
+            "detached_ci_tasks": detached_ci_tasks,
+        })
+
+    @extend_schema(responses={200: dict})
+    @action(detail=True, methods=["get"], permission_classes=[role_required(ROLE_ADMIN, ROLE_PM)])
+    def deletion_impact(self, request, pk=None):
+        """What deleting this sprint would touch, for the confirmation dialog."""
+        from apps.workitems.models import WorkItemTask
+        from apps.workitems.services import ACTIVE_EXCLUDE
+
+        sprint = self.get_object()
+        tasks = Task.active.filter(sprint=sprint)
+        ci_tasks = WorkItemTask.active.filter(sprint=sprint)
+        return Response({
+            "tasks": tasks.count(),
+            "open_tasks": tasks.exclude(status_id__in=CLOSED_TASK_STATUSES).count(),
+            "ci_tasks": ci_tasks.count(),
+            "open_ci_tasks": ci_tasks.exclude(status_id__in=ACTIVE_EXCLUDE).count(),
+            "is_active_sprint": sprint.status == Sprint.STATUS_ACTIVE,
+        })
 
     @action(detail=False, methods=["get"])
     def active(self, request):

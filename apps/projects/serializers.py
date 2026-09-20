@@ -88,6 +88,13 @@ class SprintSerializer(serializers.ModelSerializer):
         read_only_fields = ("id", "status", "closed_at")
 
 
+class SprintDeleteSerializer(serializers.Serializer):
+    """Input for deleting a sprint. The reason is mandatory and is stored as the
+    change reason of the sprint's history row, which simple_history caps at 100
+    chars — hence the 90 limit (the stored text is prefixed with "Deleted: ")."""
+    reason = serializers.CharField(min_length=5, max_length=90, trim_whitespace=True)
+
+
 class SprintStartSerializer(serializers.Serializer):
     """Input for ``SprintViewSet.start_next``: the sprint being created next."""
     name = serializers.CharField(max_length=100)
