@@ -158,6 +158,8 @@ class WorkloadRowSerializer(serializers.Serializer):
     open_tasks = serializers.IntegerField()
     ticket_hours = serializers.FloatField()
     open_tickets = serializers.IntegerField()
+    workitem_hours = serializers.FloatField()
+    open_workitem_tasks = serializers.IntegerField()
     on_leave_today = serializers.BooleanField()
     leave_days = serializers.IntegerField()
     holiday_today = serializers.BooleanField()

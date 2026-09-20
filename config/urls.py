@@ -11,7 +11,6 @@ urlpatterns = [
     # --- Apps ---
     path("api/", include("apps.accounts.urls")),
     path("api/", include("apps.catalogs.urls")),
-    path("api/", include("apps.clients.urls")),
     path("api/", include("apps.projects.urls")),
     path("api/", include("apps.resources.urls")),
     path("api/", include("apps.tickets.urls")),

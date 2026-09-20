@@ -59,3 +59,19 @@ def test_employee_without_workitems_unaffected(db):
     row = _row(emp)
     assert row["workitem_hours"] == 0.0
     assert row["open_workitem_tasks"] == 0
+
+
+def test_workload_endpoint_exposes_workitem_fields(pm_client):
+    """The service computed these all along; the serializer used to drop them."""
+    emp = EmployeeFactory()
+    WorkItemTaskFactory(assignee=emp, estimated_hours=Decimal("5.00"))
+    resp = pm_client.get("/api/resources/workload/")
+    assert resp.status_code == 200
+    row = next(r for r in resp.json() if r["employee_id"] == str(emp.id))
+    assert row["workitem_hours"] == 5.0
+    assert row["open_workitem_tasks"] == 1
+
+
+def test_clients_endpoint_is_not_routed(pm_client):
+    """Client was removed from the domain (Client == Trigger)."""
+    assert pm_client.get("/api/clients/").status_code == 404

@@ -1,17 +1,19 @@
 # PMO Command Center — Backend
 
-A Django 5 + DRF + PostgreSQL backend for the PMO Command Center. See `../PMO_Command_Center_Guide.md` for the domain background.
+Django 5.1 + DRF + PostgreSQL backend for the PMO Command Center.
+Up-to-date documentation of the whole system (models, endpoints, permissions, business rules):
+[`../docs/ESTADO_ACTUAL.md`](../docs/ESTADO_ACTUAL.md).
 
-## Quick start (Docker)
+## Quick start (Docker, from the repo root)
 
 ```bash
-cp .env.example .env
-docker compose up --build          # starts db, redis, web (migrates on boot)
-docker compose exec web python manage.py migrate
-docker compose exec web python manage.py seed_catalogs   # reference data
+docker compose up -d --build            # db, redis, web (migrates on boot), celery, frontend
+docker compose exec web python manage.py seed_catalogs   # reference data (idempotent)
 docker compose exec web python manage.py seed_roles      # PMO Admin / PM / Team / Viewer
 docker compose exec web python manage.py createsuperuser
 ```
+
+Run Compose from the **repo root**: the `docker-compose.yml` in this folder targets a separate, stale project.
 
 API docs: http://localhost:8000/api/docs/ · Schema: `/api/schema/`
 
@@ -37,18 +39,16 @@ pre-commit install
 
 | App | Contains |
 |-----|----------|
-| `core` | Abstract `TimeStampedModel`, `ActiveManager`, role permissions, base viewset |
-| `accounts` | `AppUser`, JWT `/me`, `seed_roles` |
-| `catalogs` | 20 reference tables, `seed_catalogs`, auto-generated read/write viewsets |
-| `clients` | `Client` |
-| `projects` | Project, ApiComponent, Endpoint, reuse refs, Task, Milestone, dashboards |
-| `resources` | Employee, EmployeeShift, TaskAssignment, workload service |
-| `tracking` | Issue, Risk, ProjectUpdate, Action |
-| `imports` | Excel dry-run / confirm import pipeline |
+| `core` | Abstract `TimeStampedModel`, `ActiveManager`, role permissions, `BaseModelViewSet`, pagination |
+| `accounts` | `AppUser`, `GET /api/me/`, `seed_roles` |
+| `catalogs` | Reference tables served under `/api/catalogs/<slug>/`, `seed_catalogs` |
+| `projects` | `Project`, `ProjectPhase`, `ProjectFavorite`, `Sprint`, `Task`, `SubTask`, `Milestone`, portfolio dashboards |
+| `resources` | `Employee`, `EmployeeShift`, `Leave`, `Holiday`, `TaskAssignment`, `TeamWorkloadPeriod`, workload service |
+| `tickets` | `Ticket`, `TicketStatusLog`, WIP-hours service |
+| `workitems` | Continuous Improvement: `WorkItem`, `WorkItemTask`, `WorkItemMilestone` |
+| `notes` | Personal `Note` (private per user) |
+| `links` | Reference `Link` attached to a project, note, ticket or work item |
+| `clients` | Legacy — model kept for migration history, **not routed** |
+| `tracking` | Empty — kept for migration history (replaced by `projects.SubTask`) |
 
-## Excel import
-
-`POST /api/imports/excel/dry-run/` (multipart `file=`) validates and returns a
-per-row report; `POST /api/imports/excel/confirm/` persists (atomic; aborts on any
-error). Catalogs must be seeded first. Column mapping lives in
-`imports/orchestrator.py` (`PIPELINE`).
+There is no Excel importer any more (removed 2026-07-14).
